@@ -1,0 +1,234 @@
+
+# MASTER PROMPT & PRODUCT REQUIREMENTS DOCUMENT (PRD)
+# PROJECT: SIMPATIK (Sistem Pencocokan & Pemetaan Titik Koordinat)
+
+## 0. INSTRUKSI UTAMA UNTUK AI AGENT (BACA SEBELUM EKSEKUSI!)
+Kamu adalah Senior Full-Stack & Geospatial Engineer. Tugasmu adalah membangun aplikasi web **SIMPATIK** dari nol hingga selesai secara bertahap (Step-by-Step).
+1. **Gunakan Seluruh Skill & Tools:** Aktifkan dan gunakan seluruh *skill* yang sudah terpasang di lingkunganmu (UI/UX design, frontend animation, database/PostGIS, testing/browser preview, bash execution).
+2. **Download Aset Mandiri:** Jika membutuhkan aset seperti *map tiles*, *icon pack* (`lucide-react`), *font* (`Plus Jakarta Sans` & `JetBrains Mono`), atau *dummy data* CSV/Excel untuk simulasi, unduh atau *generate* sendiri melalui *command line* / script tanpa menunggu user.
+3. **Kerja Bertahap & Verifikasi Visual (Testing):** Jangan menulis seluruh kode sekaligus tanpa dites! Kerjakan per Fase (Fase 1 -> Fase 5). Di setiap akhir fase, jalankan server lokal, buka *browser preview* / simulasi testing untuk melihat langsung hasilnya, perbaiki jika ada *error*, baru lanjut ke fase berikutnya.
+4. **Anti-AI Slop & Penamaan Manusiawi:**
+   - **DILARANG KERAS** membuat UI berformat template dashboard admin pasaran (jangan pakai sidebar kiri kaku + deretan kotak kartu warna-warni generik).
+   - **Penamaan Folder & File:** Gunakan nama pendek, natural, seperti buatan programmer manusia Indonesia/profesional (contoh: `gudang-master`, `ruang-kerja`, `peta-utama.tsx`, `hitung-jarak.ts`, `baca-excel.ts`). Hindari nama panjang bertele-tele khas AI seperti `UniversalCoordinateReconciliationManager.tsx`.
+
+---
+
+## 1. KONTEKS & TUJUAN APLIKASI
+**SIMPATIK** adalah *spatial utility tool* (alat kerja pencocokan titik koordinat X & Y universal).
+- **Kasus Utama:** Mencocokkan, mengoreksi, dan mengonfirmasi data **Trafo** (yang selalu memiliki Deskripsi/Kode Unik serta Koordinat X & Y) terhadap data Master.
+- **Sifat Universal:** Aplikasi ini bebas digunakan untuk data apa saja selama memiliki Koordinat (X & Y). Misalnya seseorang ingin mencocokkan data PDPJ terhadap banyak Master sekaligus (Master DIL, Prabayar, Pascabayar). Jika bahan Master belum ada, user tinggal *upload* dan beri nama/kategori. Jika sudah ada di "Gudang Master", user tinggal mencentang Master mana saja yang mau dijadikan acuan.
+- **Penanganan Kondisi Tanpa Deskripsi (Instruksi Khusus):**
+  - Jika Data B (data yang ditinjau, misal sebagian data lapangan/PDPJ) **memiliki Deskripsi B**, sistem mencocokkan Kode Unik terlebih dahulu (`Deskripsi A == Deskripsi B`), lalu menghitung jarak koordinatnya.
+  - Jika Data B **TIDAK memiliki Deskripsi B** (kolom kosong atau memang hanya daftar koordinat X & Y mentah), sistem **TETAP BISA MENCOCOKKAN** secara otomatis menggunakan *Spatial Nearest Neighbor* (mencari titik Master A terdekat dalam radius toleransi) tanpa mengharuskan Data Master kehilangan Deskripsi A-nya. Justru Deskripsi A dari Master akan direkomendasikan sebagai identitas untuk titik B tersebut.
+
+---
+
+## 2. TECH STACK & ARSITEKTUR
+- **Framework:** Next.js (App Router) + TypeScript
+- **Styling & Motion:** Tailwind CSS + Shadcn UI (dimodifikasi menjadi *floating glass panels*) + **Framer Motion** (untuk animasi komponen, *hover dock*, dan *intro/auth motion graphics* 1–3 detik).
+- **Map & 3D Engine:** **MapLibre GL JS** + **Deck.gl** (menggunakan WebGL Canvas agar mampu merender puluhan ribu titik di 60 FPS, mendukung *camera pitch tilt* 45–60 derajat, *Bounding Box Culling*, dan garis lengkung 3D / *ArcLayer*).
+- **Tabel Data:** `@tanstack/react-table` + `@tanstack/react-virtual` (wajib *virtualized row* agar *scroll* puluhan ribu baris tidak *lag*).
+- **Database & Backend:** PostgreSQL + **PostGIS Extension** (akses via Prisma ORM + `$queryRaw` untuk operasi geospasial `ST_DistanceSphere` dan `GIST Index`).
+- **File Parser:** `xlsx` (SheetJS) / `papaparse` untuk membaca Excel multi-sheet puluhan ribu baris secara *chunking/batching*.
+
+---
+
+## 3. STRUKTUR FOLDER (PENAMAAN NATURAL MANUSIA)
+Gunakan struktur direktori yang bersih dan akrab ini:
+```text
+src/
+├── app/
+│   ├── (auth)/
+│   │   └── masuk/page.tsx          # Halaman login dengan animasi transisi 1-3 detik
+│   ├── ruang-kerja/page.tsx        # Kanvas utama (Peta Full-screen + Tabel Drawer)
+│   ├── gudang-master/page.tsx      # Manajemen upload & pilih kategori data Master (Trafo, DIL, dll)
+│   ├── riwayat/page.tsx            # Log sesi pencocokan & statistik hasil tinjauan
+│   └── api/
+│       ├── master/route.ts         # Upload batch per-sheet & list data master
+│       ├── cocokkan/route.ts       # Engine pencocokan Hybrid (ID + Spatial KNN)
+│       ├── titik-peta/route.ts     # Endpoint Bounding-Box (Frustum Culling ala MMORPG)
+│       └── konfirmasi/route.ts     # Simpan hasil koreksi/konfirmasi & export Excel
+├── components/
+│   ├── animasi/
+│   │   ├── layar-muat.tsx          # Motion graphic logo & teks 1-3 detik (refresh/login/logout)
+│   │   └── latar-interaktif.tsx    # Background topografi/grid reaktif terhadap kursor
+│   ├── navigasi/
+│   │   └── dock-melayang.tsx       # Pengganti sidebar klasik: hanya ikon, membesar + teks saat hover
+│   ├── peta/
+│   │   ├── kanvas-peta.tsx         # MapLibre 2.5D + Deck.gl layer + BBOX listener
+│   │   └── kartu-inspeksi.tsx      # Panel kanan untuk bandingkan Titik A vs B & tombol konfirmasi
+│   ├── tabel/
+│   │   └── laci-tabel.tsx          # Bottom drawer berisi virtualized table & filter status
+│   └── modal/
+│       └── petakan-kolom.tsx       # Modal pilih Sheet Excel & mapping kolom Deskripsi, X, Y
+└── lib/
+    ├── db.ts                       # Koneksi Prisma / PostgreSQL
+    ├── bersihkan-data.ts           # Normalisasi kode unik & deteksi X/Y ketukar
+    └── rumus-jarak.ts              # Helper PostGIS query & Haversine fallback
+````
+
+## 4. SPESIFIKASI UI/UX & MOTION GRAPHICS (ANTI-DASHBOARD KLASIK)
+
+### A. Motion Graphics 1–3 Detik (Wajib di Setiap Refresh, Login, & Logout)
+
+Buat komponen `layar-muat.tsx` menggunakan **Framer Motion + SVG Path Animation**:
+
+1. **Saat Refresh / Buka Web Awal (Durasi ~2.2 detik):**
+    
+    - Tampilkan animasi _vector morphing_ dua titik koordinat (Titik A dan Titik B) yang bergerak saling mendekat, dihubungkan oleh garis radar berdenyut, lalu menyatu membentuk logo **SIMPATIK**.
+        
+    - Teks **"SIMPATIK"** muncul dengan efek _staggered kinetic typography_ (huruf naik per karakter dengan _spring physics_ dalam 0.6 detik), diikuti sub-teks _"Sistem Pencocokan & Pemetaan Titik Koordinat"_, lalu layar terbelah/memudar (_curtain reveal_) masuk ke kanvas kerja.
+        
+2. **Saat Login & Logout (Durasi ~1.5 detik):**
+    
+    - Saat berhasil Login: Animasi _camera zoom-in_ menembus jaring koordinat 3D menuju halaman `ruang-kerja`.
+        
+    - Saat Logout: Animasi _implode/collapse_ halus kembali ke halaman `masuk` dengan status teks _"Menyimpan sesi kerja..."_.
+        
+
+### B. Desain Layout "Spatial Workstation" (Bukan Admin Template!)
+
+1. **Floating Magnetic Dock (`dock-melayang.tsx`):**
+    
+    - Berbentuk kapsul vertikal melayang di sisi kiri tengah layar (`backdrop-blur-md`, border `1px`).
+        
+    - Kondisi normal: Hanya menampilkan ikon tajam (Ruang Kerja, Gudang Master, Sesi Baru, Riwayat, Keluar).
+        
+    - Saat kursor _hover_: Ikon membesar halus (_magnetic scale_) dan _pill badge_ berisi teks menu meluncur keluar dengan _spring physics_.
+        
+2. **Interactive Background & 3D Tilt Cards (Halaman Gudang Master):**
+    
+    - Latar belakang menggunakan Canvas interaktif (titik-titik koordinat / garis kontur topografi halus yang bergelombang mengikuti posisi kursor mouse).
+        
+    - Setiap kumpulan Data Master (misal: _Master Trafo Rayon Barat_, _Master DIL_, _Master Prabayar_) ditampilkan sebagai **3D Interactive Tilt Card** yang miring mengikuti sudut kursor dan menampilkan jumlah baris, kategori, serta sampel kolom.
+        
+3. **Full-Bleed 2.5D Map + Bottom Resizable Drawer (Halaman Ruang Kerja):**
+    
+    - Peta memenuhi 100% layar dengan sudut kemiringan (_pitch_) 45 derajat yang bisa diatur.
+        
+    - Di bagian bawah terdapat **Laci Tabel (`laci-tabel.tsx`)** yang bisa ditarik (_snap_ di 12% untuk mode ringkas/HUD statistik, 45% untuk mode kerja split, 85% untuk fokus tabel).
+        
+    - Saat baris di tabel diklik, kamera peta melakukan _smooth flyTo_ ke koordinat tersebut dan menampilkan **Garis Lengkung 3D (Arc)** antara Titik A (Master) dan Titik B (Tinjauan) beserta label jaraknya dalam meter.
+        
+
+## 5. SKEMA DATABASE (POSTGRESQL + POSTGIS)
+
+Buat skema berikut dan aktifkan `CREATE EXTENSION IF NOT EXISTS postgis;`:
+
+1. **Tabel `gudang_master` (Metadata Sumber Master)**
+    
+    - `id` (UUID, PK), `nama_master` (String - misal "Master Trafo Gardu Induk"), `kategori` (String - misal "TRAFO", "DIL", "PRABAYAR", "PASCABAYAR"), `nama_file_asli` (String), `total_baris` (Int), `dibuat_pada` (Timestamp).
+        
+2. **Tabel `titik_master` (Isi Data A - Puluhan Ribu Baris per Sheet)**
+    
+    - `id` (BigSerial, PK), `master_id` (UUID, FK ke `gudang_master` ON DELETE CASCADE), `deskripsi_a_asli` (String - kode unik campuran huruf/angka asli), `deskripsi_a_bersih` (String, Indexed - huruf kapital tanpa simbol/spasi untuk pencocokan cepat), `koordinat_x` (Double - Longitude), `koordinat_y` (Double - Latitude), `geom` (`geometry(Point, 4326)` dengan **GIST Spatial Index**), `info_tambahan` (JSONB - menyimpan kolom ekstra dari Excel).
+        
+3. **Tabel `sesi_pencocokan` (Riwayat & Pengaturan Pencocokan)**
+    
+    - `id` (UUID, PK), `nama_sesi` (String - misal "Audit Titik Trafo & PDPJ Nov"), `daftar_master_id` (UUID[] - array ID master yang dijadikan acuan), `toleransi_meter` (Float - default 15.0), `total_data` (Int), `total_akurat` (Int), `total_tinjau` (Int), `dibuat_pada` (Timestamp).
+        
+4. **Tabel `hasil_pencocokan` (Data Tinjauan B + Output Tabel Transparansi)**
+    
+    - `id` (BigSerial, PK), `sesi_id` (UUID, FK), `titik_master_id` (BigInt, Nullable FK ke `titik_master`),
+        
+    - **Kolom Transparansi Output (Sesuai Urutan Tabel UI):**
+        
+        - `deskripsi_a` (String - Kode unik dari Master yang cocok)
+            
+        - `sumber_master` (String - Nama/Kategori Master asal data tersebut, misal "Master DIL")
+            
+        - `koordinat_a_x`, `koordinat_a_y` (Double - Koordinat dari Master)
+            
+        - `status_keterangan` (Enum: `AKURAT`, `PERLU_KOREKSI_JARAK`, `KANDIDAT_LOKASI_TERDEKAT`, `TIDAK_DITEMUKAN`)
+            
+        - `jarak_meter` (Double - Hasil hitung jarak; semakin mendekati 0 semakin valid)
+            
+        - `deskripsi_b` (String, Nullable - Kode unik dari data tinjauan; boleh kosong jika data B tanpa deskripsi)
+            
+        - `koordinat_b_x`, `koordinat_b_y` (Double - Koordinat dari data tinjauan)
+            
+        - `keputusan_konfirmasi` (Enum: `BELUM_DITINJAU`, `TERKONFIRMASI_VALID`, `PAKAI_KOORDINAT_MASTER`, `PAKAI_KOORDINAT_BARU`, `TERIMA_DESKRIPSI_MASTER`)
+            
+
+## 6. LOGIKA BACKEND, ALGORITMA PENCOCOKAN & OPTIMASI SKALA BESAR
+
+### A. Upload Multi-Sheet & Auto-Sanitizer (`bersihkan-data.ts`)
+
+1. Saat user memilih file Excel (`.xlsx` / `.csv`), tampilkan daftar _Sheet_ yang ada di dalamnya.
+    
+2. User memilih _Sheet_ dan memetakan kolom mana yang menjadi **Deskripsi**, **Koordinat X (Longitude)**, dan **Koordinat Y (Latitude)**. Untuk Data B, pilihan kolom Deskripsi boleh dikosongkan ("Tanpa Deskripsi").
+    
+3. **Auto-Fix Koordinat Ketukar:** Di Indonesia, Longitude (X) bernilai sekitar `95.0` s/d `141.0` dan Latitude (Y) bernilai `-11.0` s/d `6.0`. Jika terdeteksi nilai X dan Y terbalik, otomatis tukar nilainya dan beri notifikasi ke user. Ubah koma desimal (`-6,712`) menjadi titik (`-6.712`).
+    
+4. **Chunked Insertion:** Potong puluhan ribu baris menjadi _batch_ @ 2.500 baris per transaksi database agar hemat memori dan tampilkan _progress bar_ real-time. Jangan simpan file Excel mentah di storage server setelah diekstrak!
+    
+
+### B. Hybrid Matching Engine (`cocokkan/route.ts`)
+
+Saat user mencentang satu atau beberapa Master (misal Master Trafo, atau gabungan DIL + Prabayar + Pascabayar) dan klik **"Mulai Pencocokan"**, jalankan 2 tahap SQL PostGIS:
+
+1. **Tahap 1 — Pencocokan Kode Unik (Untuk Data B yang Punya Deskripsi B):**
+    
+    - Cocokkan `B.deskripsi_b_bersih = A.deskripsi_a_bersih` pada `master_id` yang dipilih.
+        
+    - Jika kode unik yang sama ditemukan di lebih dari satu Master, pilih yang jarak spasialnya paling dekat menggunakan `DISTINCT ON (B.id) ... ORDER BY ST_DistanceSphere(B.geom, A.geom) ASC`.
+        
+    - Hitung `jarak_meter`. Jika `jarak_meter <= toleransi_meter`, set `status_keterangan = 'AKURAT'`. Jika lebih besar dari toleransi, set `status_keterangan = 'PERLU_KOREKSI_JARAK'`.
+        
+2. **Tahap 2 — Pencocokan Spasial Terdekat / KNN (Khusus Data B Tanpa Deskripsi B atau Kode Tidak Ketemu):**
+    
+    - Untuk baris B yang `deskripsi_b` kosong ATAU belum mendapat pasangan di Tahap 1, gunakan operator indeks spasial PostGIS `<->` (`LATERAL JOIN`) untuk mencari 1 titik Master A terdekat dalam radius maksimal `100 meter`.
+        
+    - Jika ketemu dalam radius tersebut, pasangkan dengan titik Master A itu, isi `deskripsi_a` & `sumber_master` dari Master A, hitung `jarak_meter`, dan beri status `KANDIDAT_LOKASI_TERDEKAT` (agar user tinggal klik "Terima Deskripsi Master" saat konfirmasi).
+        
+    - Jika di radius 100 meter tidak ada titik Master sama sekali, beri status `TIDAK_DITEMUKAN`.
+        
+
+### C. Teknik "Frustum Culling" Kamera Peta (`titik-peta/route.ts`)
+
+- Jangan pernah memuat semua puluhan ribu titik ke peta sekaligus!
+    
+- Setiap kamera peta digeser/di-zoom, kirim koordinat batas layar (`minX, minY, maxX, maxY, zoom`) ke backend.
+    
+- Backend memfilter titik menggunakan `ST_MakeEnvelope(minX, minY, maxX, maxY, 4326)` sehingga hanya merender titik yang berada di pandangan mata user (persis sistem render kamera game MMORPG).
+    
+
+## 7. URUTAN EKSEKUSI BERTAHAP & SIMULASI TESTING (WAJIB DIIKUTI AGENT)
+
+Kerjakan dengan urutan fase berikut dan **lakukan verifikasi langsung di setiap fase**:
+
+- **FASE 1: Pondasi, Database & Generator Data Simulasi**
+    
+    1. Inisialisasi project Next.js + Tailwind + Framer Motion + MapLibre.
+        
+    2. Buat skema database dan buat **Script Generator Dummy Data (`scripts/buat-data-contoh.ts`)** yang menghasilkan file CSV/Excel realistis:
+        
+        - `Master_Trafo_Jabar.csv` (memiliki kode unik seperti `TRF-001A`, `TRF-001B` dengan nomor sama tapi abjad beda, beserta koordinat X & Y).
+            
+        - `Master_DIL.csv` dan `Master_Prabayar.csv`.
+            
+        - `Data_Tinjauan_Campuran.csv` (berisi titik yang akurat < 5 meter, titik yang meleset 45 meter, dan beberapa baris **tanpa kolom deskripsi** untuk menguji fitur _Spatial Nearest Neighbor_).
+            
+- **FASE 2: Motion Graphics (1–3 Detik) & Layout Shell**
+    
+    1. Bangun `layar-muat.tsx` (animasi intro/refresh/login/logout 1-3 detik), `dock-melayang.tsx` (ikon hover memunculkan teks), dan `latar-interaktif.tsx`.
+        
+    2. Jalankan _dev server_ dan tes di browser untuk memastikan animasi berjalan mulus 60 FPS dan tampilan benar-benar bersih (bukan admin dashboard kaku).
+        
+- **FASE 3: Gudang Master & Upload Multi-Sheet**
+    
+    1. Bangun halaman `gudang-master` dengan kartu 3D tilt dan modal `petakan-kolom.tsx`.
+        
+    2. Uji unggah data contoh dan pastikan _batch insert_ berhasil masuk ke database.
+        
+- **FASE 4: Engine Pencocokan & Kanvas Peta 2.5D + Laci Tabel**
+    
+    1. Bangun `ruang-kerja/page.tsx` dengan peta MapLibre/Deck.gl (lengkap dengan BBOX culling & garis lengkung 3D antara Titik A dan Titik B) serta `laci-tabel.tsx` yang menampilkan kolom: **Deskripsi A | Koordinat A | Keterangan Status | Jarak (m) | Deskripsi B | Koordinat B**.
+        
+    2. Bangun `kartu-inspeksi.tsx` untuk aksi **Koreksi & Konfirmasi** (termasuk konfirmasi untuk data tanpa deskripsi) serta tombol **Export Hasil (Excel/CSV)**.
+        
+- **FASE 5: End-to-End Simulation Testing**
+    
+    1. Jalankan skenario penuh dari Login -> Upload Master -> Pilih Multi-Master -> Pencocokan Data (dengan & tanpa deskripsi) -> Klik baris tabel -> Lihat garis jarak di peta -> Konfirmasi koreksi -> Export.
+        
+    2. Pastikan tidak ada _error_ di console maupun terminal.

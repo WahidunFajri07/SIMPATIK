@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Status {
+  AKURAT
+  PERLU_KOREKSI_JARAK
+  KANDIDAT_LOKASI_TERDEKAT
+  TIDAK_DITEMUKAN
+}
+enum Keputusan {
+  BELUM_DITINJAU
+  TERKONFIRMASI_VALID
+  PAKAI_KOORDINAT_MASTER
+  PAKAI_KOORDINAT_BARU
+  TERIMA_DESKRIPSI_MASTER
+}
+model GudangMaster {
+  id String @id @default(uuid()) @db.Uuid
+  nama String @map("nama_master")
+  kategori String
+  file String @map("nama_file_asli")
+  total Int @default(0) @map("total_baris")
+  dibuat DateTime @default(now()) @map("dibuat_pada")
+  titik TitikMaster[]
+  @@map("gudang_master")
+}
+model TitikMaster {
+  id BigInt @id @default(autoincrement())
+  masterId String @db.Uuid @map("master_id")
+  master GudangMaster @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  deskripsi String @map("deskripsi_a_asli")
+  bersih String @map("deskripsi_a_bersih")
+  x Float @map("koordinat_x")
+  y Float @map("koordinat_y")
+  geom Unsupported("geometry(Point,4326)")?
+  info Json @default("{}") @map("info_tambahan")
+  hasil HasilPencocokan[]
+  @@index([masterId, bersih])
+  @@map("titik_master")
+}
+model SesiPencocokan {
+  id String @id @default(uuid()) @db.Uuid
+  nama String @map("nama_sesi")
+  masterIds String[] @db.Uuid @map("daftar_master_id")
+  toleransi Float @default(15) @map("toleransi_meter")
+  total Int @default(0) @map("total_data")
+  akurat Int @default(0) @map("total_akurat")
+  tinjau Int @default(0) @map("total_tinjau")
+  dikonfirmasi Int @default(0)
+  dibuat DateTime @default(now()) @map("dibuat_pada")
+  hasil HasilPencocokan[]
+  @@map("sesi_pencocokan")
+}
+model HasilPencocokan {
+  id BigInt @id @default(autoincrement())
+  sesiId String @db.Uuid @map("sesi_id")
+  sesi SesiPencocokan @relation(fields: [sesiId], references: [id], onDelete: Cascade)
+  masterId BigInt? @map("titik_master_id")
+  master TitikMaster? @relation(fields: [masterId], references: [id], onDelete: SetNull)
+  deskripsiA String? @map("deskripsi_a")
+  sumber String? @map("sumber_master")
+  ax Float? @map("koordinat_a_x")
+  ay Float? @map("koordinat_a_y")
+  status Status @map("status_keterangan")
+  jarak Float? @map("jarak_meter")
+  deskripsiB String @default("") @map("deskripsi_b")
+  bx Float @map("koordinat_b_x")
+  by Float @map("koordinat_b_y")
+  keputusan Keputusan @default(BELUM_DITINJAU) @map("keputusan_konfirmasi")
+  hasilX Float? @map("hasil_x")
+  hasilY Float? @map("hasil_y")
+  hasilDeskripsi String? @map("hasil_deskripsi")
+  geom Unsupported("geometry(Point,4326)")?
+  @@index([sesiId, status])
+  @@map("hasil_pencocokan")
+}
+model BatchImpor {
+  id String @id @db.Uuid
+  pemilik String
+  jenis String
+  @@map("batch_impor")
+}

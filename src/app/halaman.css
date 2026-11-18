@@ -1,0 +1,202 @@
+.status-mobile {
+  display: none;
+}
+.data-row .mono {
+  font-size: 11px;
+}
+.table-code {
+  font-size: 12px;
+}
+.table-source,
+.decision-cell,
+.no-description {
+  font-size: 11px;
+}
+.status-badge {
+  font-size: 10px;
+}
+.table-head button {
+  font-size: 10px;
+}
+.map-attribution {
+  font-size: 9px;
+}
+.history-search {
+  max-width: 350px;
+  margin: 0 0 25px;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #dce5dc;
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 26px 10px;
+  border-bottom: 1px solid #dce5dc;
+}
+.history-index {
+  font-family: "JetBrains Mono";
+  font-size: 11px;
+  color: #9eb09e;
+  padding-right: 15px;
+}
+.history-title {
+  flex: 1;
+  min-width: 0;
+}
+.history-title > span {
+  font-size: 9px;
+  color: #93a693;
+}
+.history-title h2 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #4b7056;
+  letter-spacing: -0.4px;
+  margin: 9px 0;
+}
+.history-title p {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9px;
+  color: #98a895;
+  margin: 0;
+}
+.history-title i {
+  height: 3px;
+  width: 3px;
+  border-radius: 50%;
+  background: #afbea8;
+}
+.history-progress {
+  width: 190px;
+  margin-right: 15px;
+}
+.history-progress > div {
+  height: 4px;
+  border-radius: 5px;
+  background: #eadcbd;
+  overflow: hidden;
+}
+.history-progress > div > span {
+  display: block;
+  background: #74ab8a;
+  height: 100%;
+}
+.history-progress p {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: #99a88d;
+  margin: 9px 0;
+}
+.history-progress p > span:first-child {
+  color: #76a07e;
+}
+.history-progress small {
+  font-size: 8px;
+  color: #a8b49c;
+}
+.history-open {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+  color: #729370;
+  white-space: nowrap;
+}
+.guide-body {
+  max-width: 1000px;
+}
+.guide-body > h1 {
+  font-size: 32px;
+  letter-spacing: -1px;
+  font-weight: 500;
+  margin: 18px 0;
+}
+.guide-intro {
+  color: #8ba08a;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  margin: 40px 0;
+}
+.guide-steps section {
+  display: flex;
+  gap: 30px;
+  padding: 24px 0;
+  border-top: 1px solid #dfe8dd;
+}
+.guide-steps section > span {
+  font-family: "JetBrains Mono";
+  font-size: 12px;
+  color: #94b08f;
+  padding-top: 3px;
+}
+.guide-steps h2 {
+  font-size: 16px;
+  letter-spacing: -0.4px;
+  font-weight: 500;
+  color: #5d7d56;
+  margin: 0 0 12px;
+}
+.guide-steps p {
+  font-size: 12px;
+  color: #8b9e82;
+  line-height: 1.9;
+  max-width: 650px;
+  margin: 0;
+}
+.guide-download {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 25px;
+}
+.guide-download .btn {
+  font-size: 10px;
+}
+@media (max-width: 800px) {
+  .status-mobile {
+    display: block;
+    width: 95px;
+    padding: 8px 5px;
+    font-size: 9px;
+  }
+  .map-attribution {
+    font-size: 7px;
+  }
+  .history-row {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .history-index {
+    display: none;
+  }
+  .history-title {
+    flex-basis: 75%;
+  }
+  .history-progress {
+    width: 70%;
+    margin-right: auto;
+  }
+  .history-title h2 {
+    font-size: 14px;
+  }
+  .history-open {
+    font-size: 9px;
+  }
+  .guide-steps section {
+    gap: 20px;
+  }
+  .guide-body > h1 {
+    font-size: 26px;
+  }
+}
