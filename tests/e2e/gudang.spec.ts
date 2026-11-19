@@ -42,5 +42,24 @@ test("fase 3: impor multi-sheet dan pilih sumber", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Cocokkan data" }),
   ).toBeVisible();
+  // CRUD kartu: ubah nama, lalu hapus.
+  await page.getByRole("button", { name: `Ubah ${nama}` }).click();
+  const ubah = page.getByRole("dialog");
+  await expect(ubah).toBeVisible();
+  await ubah.getByLabel("Nama master").fill(`${nama} revisi`);
+  await ubah.getByRole("button", { name: "Simpan perubahan" }).click();
+  await expect(ubah).toHaveCount(0);
+  const namaBaru = `${nama} revisi`;
+  await expect(
+    page.getByRole("heading", { name: namaBaru, exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: `Hapus ${namaBaru}` }).click();
+  const konfirmasi = page.getByRole("dialog");
+  await expect(konfirmasi.getByText(/titik koordinat ikut terhapus/)).toBeVisible();
+  await konfirmasi.getByRole("button", { name: /Hapus permanen/ }).click();
+  await expect(konfirmasi).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: namaBaru, exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({ path: "test-results/gudang.png", fullPage: true });
 });

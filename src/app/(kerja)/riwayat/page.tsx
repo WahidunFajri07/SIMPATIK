@@ -7,7 +7,11 @@ import {
   History,
   Plus,
   Search,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { DialogHapus, DialogUbahNama } from "@/components/ui/dialog-aksi";
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { api, jumlah } from "@/lib/klien";
@@ -17,19 +21,32 @@ export default function Page() {
     [search, setSearch] = useState(""),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
-    [mode, setMode] = useState("");
+    [mode, setMode] = useState(""),
+    [ubah, setUbah] = useState<Sesi | null>(null),
+    [hapus, setHapus] = useState<Sesi | null>(null),
+    [toast, setToast] = useState("");
+  async function load() {
+    try {
+      const [s, m] = await Promise.all([
+        api<{ sesi: Sesi[] }>("/api/sesi"),
+        api<{ mode: string }>("/api/master"),
+      ]);
+      setSessions(s.sesi);
+      setMode(m.mode);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
   useEffect(() => {
-    Promise.all([
-      api<{ sesi: Sesi[] }>("/api/sesi"),
-      api<{ mode: string }>("/api/master"),
-    ])
-      .then(([s, m]) => {
-        setSessions(s.sesi);
-        setMode(m.mode);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    void load();
   }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
   return (
     <main className="collection-page">
       <LatarInteraktif />
@@ -76,59 +93,88 @@ export default function Page() {
           </div>
         )}
         <div className="history-list">
-          {sessions
-            .filter((s) => s.nama.toLowerCase().includes(search.toLowerCase()))
-            .map((s, i) => (
-              <article key={s.id} className="history-row">
-                <span className="history-index">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="history-title">
-                  <span>
-                    {new Date(s.dibuat).toLocaleString("id-ID", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "Asia/Jakarta",
-                    })}{" "}
-                    WIB
+          <AnimatePresence initial={false}>
+            {sessions
+              .filter((s) =>
+                s.nama.toLowerCase().includes(search.toLowerCase()),
+              )
+              .map((s, i) => (
+                <motion.article
+                  key={s.id}
+                  layout
+                  exit={{
+                    opacity: 0,
+                    x: 24,
+                    transition: { duration: 0.25 },
+                  }}
+                  className="history-row"
+                >
+                  <span className="history-index">
+                    {String(i + 1).padStart(2, "0")}
                   </span>
-                  <Link href={`/ruang-kerja?sesi=${s.id}`}>
-                    <h2>{s.nama}</h2>
-                  </Link>
-                  <p>
-                    {s.masterIds.length} sumber master <i /> Toleransi{" "}
-                    {s.toleransi} m <i /> {jumlah(s.total)} titik
-                  </p>
-                </div>
-                <div className="history-progress">
-                  <div>
-                    <span
-                      style={{
-                        width: `${s.total ? (s.akurat / s.total) * 100 : 0}%`,
-                      }}
-                    />
+                  <div className="history-title">
+                    <span>
+                      {new Date(s.dibuat).toLocaleString("id-ID", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "Asia/Jakarta",
+                      })}{" "}
+                      WIB
+                    </span>
+                    <Link href={`/ruang-kerja?sesi=${s.id}`}>
+                      <h2>{s.nama}</h2>
+                    </Link>
+                    <p>
+                      {s.masterIds.length} sumber master <i /> Toleransi{" "}
+                      {s.toleransi} m <i /> {jumlah(s.total)} titik
+                    </p>
                   </div>
-                  <p>
-                    <span>{s.akurat} akurat</span>
-                    <span>{s.tinjau} perlu ditinjau</span>
-                  </p>
-                  <small>{s.dikonfirmasi} keputusan tersimpan</small>
-                </div>
-                <a
-                  href={`/api/konfirmasi?sesiId=${s.id}&format=xlsx`}
-                  className="icon-btn"
-                  aria-label={`Ekspor ${s.nama}`}
-                >
-                  <ArrowDownToLine size={16} />
-                </a>
-                <Link
-                  href={`/ruang-kerja?sesi=${s.id}`}
-                  className="history-open"
-                >
-                  Lanjutkan <ArrowUpRight size={15} />
-                </Link>
-              </article>
-            ))}
+                  <div className="history-progress">
+                    <div>
+                      <span
+                        style={{
+                          width: `${s.total ? (s.akurat / s.total) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                    <p>
+                      <span>{s.akurat} akurat</span>
+                      <span>{s.tinjau} perlu ditinjau</span>
+                    </p>
+                    <small>{s.dikonfirmasi} keputusan tersimpan</small>
+                  </div>
+                  <div className="row-actions">
+                    <button
+                      className="icon-btn"
+                      onClick={() => setUbah(s)}
+                      aria-label={`Ubah nama ${s.nama}`}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      className="icon-btn danger"
+                      onClick={() => setHapus(s)}
+                      aria-label={`Hapus ${s.nama}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  <a
+                    href={`/api/konfirmasi?sesiId=${s.id}&format=xlsx`}
+                    className="icon-btn"
+                    aria-label={`Ekspor ${s.nama}`}
+                  >
+                    <ArrowDownToLine size={16} />
+                  </a>
+                  <Link
+                    href={`/ruang-kerja?sesi=${s.id}`}
+                    className="history-open"
+                  >
+                    Lanjutkan <ArrowUpRight size={15} />
+                  </Link>
+                </motion.article>
+              ))}
+          </AnimatePresence>
         </div>
         {!sessions.length && !error && (
           <div className="empty-state">
@@ -138,6 +184,44 @@ export default function Page() {
           </div>
         )}
       </div>
+      <DialogUbahNama
+        open={!!ubah}
+        judul="Ubah nama sesi"
+        label="Nama sesi"
+        nilai={ubah?.nama ?? ""}
+        onClose={() => setUbah(null)}
+        onSimpan={async (nama) => {
+          if (!ubah) return;
+          await api("/api/sesi", {
+            method: "PATCH",
+            body: JSON.stringify({ id: ubah.id, nama }),
+          });
+          setUbah(null);
+          setToast("Nama sesi diperbarui.");
+          void load();
+        }}
+      />
+      <DialogHapus
+        open={!!hapus}
+        judul="Hapus sesi pencocokan"
+        nama={hapus?.nama ?? ""}
+        akibat={`${jumlah(hapus?.total ?? 0)} hasil pencocokan dan ${hapus?.dikonfirmasi ?? 0} keputusan ikut terhapus. Tidak bisa dikembalikan.`}
+        catatan="Sumber master acuan tetap aman — yang hilang hanya catatan tinjauan ini."
+        onClose={() => setHapus(null)}
+        onHapus={async () => {
+          if (!hapus) return;
+          const namaLama = hapus.nama;
+          await api(`/api/sesi?id=${hapus.id}`, { method: "DELETE" });
+          setHapus(null);
+          setToast(`Sesi “${namaLama}” dihapus.`);
+          void load();
+        }}
+      />
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
     </main>
   );
 }

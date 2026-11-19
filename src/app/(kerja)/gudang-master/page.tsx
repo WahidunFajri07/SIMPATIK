@@ -9,7 +9,10 @@ import {
   FileSpreadsheet,
   Database,
   FolderOpen,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { DialogHapus, DialogUbahMaster } from "@/components/ui/dialog-aksi";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { PetakanKolom } from "@/components/modal/petakan-kolom";
@@ -20,10 +23,14 @@ function KartuMaster({
   master,
   selected,
   pilih,
+  onUbah,
+  onHapus,
 }: {
   master: Master;
   selected: boolean;
   pilih: () => void;
+  onUbah: () => void;
+  onHapus: () => void;
 }) {
   const x = useMotionValue(0),
     y = useMotionValue(0),
@@ -32,7 +39,11 @@ function KartuMaster({
   return (
     <motion.article
       className={`master-card ${selected ? "selected" : ""}`}
-      style={{ rotateX: rx, rotateY: ry, transformPerspective: 900 }}
+      style={{
+        rotateX: selected ? 0 : rx,
+        rotateY: selected ? 0 : ry,
+        transformPerspective: 900,
+      }}
       onMouseMove={(e) => {
         if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         const r = e.currentTarget.getBoundingClientRect();
@@ -85,9 +96,31 @@ function KartuMaster({
             year: "numeric",
           })}
         </span>
-        <button onClick={pilih} aria-label={`Gunakan ${master.nama}`}>
-          <ArrowUpRight size={17} />
-        </button>
+        <div className="card-actions">
+          <button
+            className="card-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUbah();
+            }}
+            aria-label={`Ubah ${master.nama}`}
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            className="card-action danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              onHapus();
+            }}
+            aria-label={`Hapus ${master.nama}`}
+          >
+            <Trash2 size={14} />
+          </button>
+          <button onClick={pilih} aria-label={`Gunakan ${master.nama}`}>
+            <ArrowUpRight size={17} />
+          </button>
+        </div>
       </footer>
     </motion.article>
   );
@@ -102,6 +135,8 @@ export default function Page() {
     [selected, setSelected] = useState<string[]>([]),
     [upload, setUpload] = useState(false),
     [match, setMatch] = useState(false),
+    [ubah, setUbah] = useState<Master | null>(null),
+    [hapus, setHapus] = useState<Master | null>(null),
     [toast, setToast] = useState("");
   async function load() {
     try {
@@ -212,6 +247,8 @@ export default function Page() {
                       : [...selected, m.id],
                   )
                 }
+                onUbah={() => setUbah(m)}
+                onHapus={() => setHapus(m)}
               />
             ))}
             {!search && category === "SEMUA" && (
@@ -284,6 +321,37 @@ export default function Page() {
         mode="tinjauan"
         masters={masters.filter((m) => selected.includes(m.id))}
         onDone={(s) => window.location.assign(`/ruang-kerja?sesi=${s.id}`)}
+      />
+      <DialogUbahMaster
+        master={ubah}
+        onClose={() => setUbah(null)}
+        onSimpan={async (nama, kategori) => {
+          if (!ubah) return;
+          await api("/api/master", {
+            method: "PATCH",
+            body: JSON.stringify({ id: ubah.id, nama, kategori }),
+          });
+          setUbah(null);
+          setToast(`Master diubah menjadi “${nama}”.`);
+          void load();
+        }}
+      />
+      <DialogHapus
+        open={!!hapus}
+        judul="Hapus sumber master"
+        nama={hapus?.nama ?? ""}
+        akibat={`${jumlah(hapus?.total ?? 0)} titik koordinat ikut terhapus dan tidak bisa dikembalikan.`}
+        catatan="Tinjauan yang pernah memakai sumber ini tetap ada, tetapi pasangan titiknya hilang."
+        onClose={() => setHapus(null)}
+        onHapus={async () => {
+          if (!hapus) return;
+          const namaLama = hapus.nama;
+          await api(`/api/master?id=${hapus.id}`, { method: "DELETE" });
+          setSelected(selected.filter((id) => id !== hapus.id));
+          setHapus(null);
+          setToast(`Master “${namaLama}” dihapus.`);
+          void load();
+        }}
       />
       {toast && (
         <div className="toast" role="status">

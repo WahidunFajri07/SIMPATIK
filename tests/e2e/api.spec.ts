@@ -88,6 +88,36 @@ test("validasi API, BBOX, idempotensi dan konfirmasi persisten", async ({
     )
   ).json();
   expect(bbox.points.length).toBe(2);
+  // Ubah lalu hapus: master hilang, sesi tetap ada tanpa pasangan master.
+  const diubah = await request.patch("/api/master", {
+    data: { id: m.id, nama: "Master API (diubah)" },
+  });
+  expect(diubah.ok()).toBeTruthy();
+  expect((await diubah.json()).kategori).toBe("TRAFO");
+  expect(
+    (
+      await request.patch("/api/master", {
+        data: { id: randomUUID(), nama: "Hantu" },
+      })
+    ).status(),
+  ).toBe(404);
+  expect(
+    (await request.delete(`/api/master?id=${randomUUID()}`)).status(),
+  ).toBe(404);
+  expect((await request.delete(`/api/master?id=bukan-uuid`)).status()).toBe(
+    400,
+  );
+  expect((await request.delete(`/api/master?id=${m.id}`)).ok()).toBeTruthy();
+  const yatim = await (await request.get(`/api/sesi?id=${s.id}`)).json();
+  expect(yatim.sesi.total).toBe(1);
+  expect(yatim.hasil[0].masterId).toBeNull();
+  // Sesi: ubah nama, lalu hapus — master lain tidak ikut terhapus.
+  const sesiBaru = await request.patch("/api/sesi", {
+    data: { id: s.id, nama: "Sesi API (diubah)" },
+  });
+  expect((await sesiBaru.json()).nama).toBe("Sesi API (diubah)");
+  expect((await request.delete(`/api/sesi?id=${s.id}`)).ok()).toBeTruthy();
+  expect((await request.get(`/api/sesi?id=${s.id}`)).status()).toBe(404);
   await request.delete("/api/auth");
   expect((await request.get("/api/sesi")).status()).toBe(401);
 });

@@ -842,6 +842,89 @@ label > select {
   color: #79988a;
   display: flex;
 }
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-action {
+  padding: 5px;
+  border-radius: 6px;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s ease,
+    background 0.18s ease;
+}
+/* Desktop reveal; action stays clickable after card selection. */
+.master-card:hover .card-action,
+.master-card:focus-within .card-action,
+.master-card.selected .card-action {
+  opacity: 1;
+  transform: translateY(0);
+}
+.card-action:hover {
+  background: #edf6f3;
+  color: var(--teal);
+}
+.card-action.danger:hover {
+  background: #fdeeee;
+  color: #c0443f;
+}
+/* Tanpa hover (layar sentuh) aksi harus selalu terlihat. */
+@media (hover: none) {
+  .card-action {
+    opacity: 1;
+    transform: none;
+  }
+}
+.btn-danger {
+  background: #c0443f;
+  color: white;
+}
+.btn-danger:hover {
+  background: #a63631;
+}
+/* Form di dalam dialog: field bertumpuk, tombol rata kanan. */
+.form-aksi {
+  display: grid;
+  gap: 8px;
+}
+.form-aksi label:not(:first-child) {
+  margin-top: 12px;
+}
+.danger-note {
+  display: flex;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid #f0d7d5;
+  border-radius: 10px;
+  background: #fdf3f2;
+  color: #8a3b37;
+  margin-bottom: 22px;
+}
+.danger-note strong {
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+}
+.danger-note p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #a05c58;
+}
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
+.icon-btn.danger:hover {
+  color: #c0443f;
+  background: #fdeeee;
+  border-color: #f0d7d5;
+}
 .add-master-card {
   padding: 35px 20px;
   min-height: 322px;

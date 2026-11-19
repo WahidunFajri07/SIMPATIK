@@ -1,5 +1,6 @@
-import { endpoint, json, uuid, ApiError } from "@/lib/api";
-import { daftarSesi, bacaHasil } from "@/lib/repositori";
+import { endpoint, json, uuid, body, ApiError } from "@/lib/api";
+import { z } from "zod";
+import { daftarSesi, bacaHasil, ubahSesi, hapusSesi } from "@/lib/repositori";
 export const GET = endpoint(async (req) => {
   const q = new URL(req.url).searchParams;
   const id = q.get("id");
@@ -18,4 +19,15 @@ export const GET = endpoint(async (req) => {
   const sesi = (await daftarSesi()).find((s) => s.id === id);
   if (!sesi) throw new ApiError("Sesi tidak ditemukan.", 404);
   return json({ sesi, hasil: await bacaHasil(id, offset, limit) });
+});
+export const PATCH = endpoint(async (req) => {
+  const i = await body(
+    req,
+    z.object({ id: uuid, nama: z.string().trim().min(1).max(120) }),
+  );
+  return json(await ubahSesi(i.id, i.nama));
+});
+export const DELETE = endpoint(async (req) => {
+  await hapusSesi(uuid.parse(new URL(req.url).searchParams.get("id") ?? ""));
+  return json({ ok: true });
 });

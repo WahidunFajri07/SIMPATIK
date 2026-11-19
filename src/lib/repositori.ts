@@ -11,6 +11,56 @@ export async function daftarMaster(): Promise<Master[]> {
     ? serial(await db().gudangMaster.findMany({ orderBy: { dibuat: "desc" } }))
     : lokal((s) => s.masters);
 }
+export async function ubahMaster(
+  id: string,
+  input: { nama: string; kategori?: string },
+): Promise<Master> {
+  if (!pakaiPostgis) throw new ApiError("Ubah master butuh database.");
+  if (await db().gudangMaster.findUnique({ where: { id } }))
+    return serial<Master>(
+      await db().gudangMaster.update({
+        where: { id },
+        data: {
+          nama: input.nama.trim(),
+          ...(input.kategori ? { kategori: input.kategori.trim() } : {}),
+        },
+      }),
+    );
+  throw new ApiError("Master tidak ditemukan.", 404);
+}
+export async function hapusMaster(id: string): Promise<void> {
+  if (!pakaiPostgis) throw new ApiError("Hapus master butuh database.");
+  await db().$transaction(async (tx) => {
+    if (!(await tx.gudangMaster.findUnique({ where: { id } })))
+      throw new ApiError("Master tidak ditemukan.", 404);
+    // Baris batch ikut dibuang: kalau tidak, impor ulang dengan batchId sama
+    // akan mencari master yang sudah tiada lalu gagal.
+    await tx.batchImpor.deleteMany({ where: { pemilik: id, jenis: "master" } });
+    // Titik master ikut terhapus lewat onDelete: Cascade.
+    await tx.gudangMaster.delete({ where: { id } });
+  });
+}
+export async function ubahSesi(id: string, nama: string): Promise<Sesi> {
+  if (!pakaiPostgis) throw new ApiError("Ubah sesi butuh database.");
+  if (await db().sesiPencocokan.findUnique({ where: { id } }))
+    return serial<Sesi>(
+      await db().sesiPencocokan.update({
+        where: { id },
+        data: { nama: nama.trim() },
+      }),
+    );
+  throw new ApiError("Sesi tidak ditemukan.", 404);
+}
+export async function hapusSesi(id: string): Promise<void> {
+  if (!pakaiPostgis) throw new ApiError("Hapus sesi butuh database.");
+  await db().$transaction(async (tx) => {
+    if (!(await tx.sesiPencocokan.findUnique({ where: { id } })))
+      throw new ApiError("Sesi tidak ditemukan.", 404);
+    await tx.batchImpor.deleteMany({ where: { pemilik: id, jenis: "sesi" } });
+    // Hasil pencocokan ikut terhapus lewat onDelete: Cascade.
+    await tx.sesiPencocokan.delete({ where: { id } });
+  });
+}
 export async function daftarSesi(): Promise<Sesi[]> {
   return pakaiPostgis
     ? serial(
