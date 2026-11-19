@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { db, pakaiPostgis } from "./db";
 import {
   createHmac,
   randomBytes,
@@ -53,4 +54,16 @@ export async function pengguna() {
   } catch {
     return null;
   }
+}
+/** Hanya untuk rute akun: ADMIN_EMAIL dari .env, atau akun pertama di database. */
+export async function adminUtama() {
+  const me = await pengguna();
+  if (!me) return null;
+  if (me.email === process.env.ADMIN_EMAIL) return me;
+  if (!pakaiPostgis) return null;
+  const pertama = await db().pengguna.findFirst({
+    orderBy: { dibuat: "asc" },
+    select: { email: true },
+  });
+  return pertama?.email === me.email ? me : null;
 }

@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { masuk } from "./masuk";
 test("fase 3: impor multi-sheet dan pilih sumber", async ({ page }) => {
-  await page.request.post("/api/auth", { data: { demo: true } });
+  await masuk(page);
+  // Nama unik: database menyimpan data antar run, nama tetap akan menumpuk.
+  const nama = `Master uji ${Date.now()}`;
   await page.goto("/gudang-master");
   await expect(page.locator(".intro")).toHaveCount(0);
   await expect(page.locator(".master-card").first()).toBeVisible();
@@ -21,18 +24,18 @@ test("fase 3: impor multi-sheet dan pilih sumber", async ({ page }) => {
   ).toBeVisible();
   await page
     .getByLabel("Nama master", { exact: true })
-    .fill("Master uji multi-sheet");
+    .fill(nama);
   await page
     .getByRole("combobox", { name: "Kategori", exact: true })
     .selectOption("DIL");
   await page.getByRole("button", { name: "Simpan master" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Master uji multi-sheet", exact: true }),
+    page.getByRole("heading", { name: nama, exact: true }),
   ).toBeVisible();
   await page
     .getByRole("checkbox", {
-      name: "Pilih Master uji multi-sheet",
+      name: `Pilih ${nama}`,
       exact: true,
     })
     .check();

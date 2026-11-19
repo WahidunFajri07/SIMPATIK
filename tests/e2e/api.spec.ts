@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { masuk } from "./masuk";
 import { randomUUID } from "node:crypto";
 test("validasi API, BBOX, idempotensi dan konfirmasi persisten", async ({
   request,
@@ -11,7 +12,7 @@ test("validasi API, BBOX, idempotensi dan konfirmasi persisten", async ({
       })
     ).status(),
   ).toBe(403);
-  await request.post("/api/auth", { data: { demo: true } });
+  await masuk(request);
   expect((await request.get("/api/titik-peta?minX=NaN")).status()).toBe(400);
   expect(
     (

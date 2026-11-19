@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { masuk } from "./masuk";
 import * as XLSX from "xlsx";
 test("fase 4–5: pencocokan, peta, konfirmasi, ekspor dan riwayat", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.request.post("/api/auth", { data: { demo: true } });
+  await masuk(page);
   await page.goto("/ruang-kerja?baru=1");
   await expect(page.locator(".intro")).toHaveCount(0);
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -76,7 +77,7 @@ test("fase 4–5: pencocokan, peta, konfirmasi, ekspor dan riwayat", async ({
   expect(errors).toEqual([]);
 });
 test("data B hanya koordinat dan tampilan seluler", async ({ page }) => {
-  await page.request.post("/api/auth", { data: { demo: true } });
+  await masuk(page);
   await page.goto("/ruang-kerja?baru=1");
   await expect(page.locator(".intro")).toHaveCount(0);
   await page

@@ -346,11 +346,27 @@ export function KanvasPeta({
         data-points={points.length}
       />
       <div className="map-gradient" />
-      <div className="map-location">
-        <span className="tiny-dot" /> WGS84 · INDONESIA{" "}
-        <span className="mono">
-          {position.y.toFixed(4)}° / {position.x.toFixed(4)}°
-        </span>
+      <div
+        className="map-readouts"
+        style={{ bottom: `calc(${drawerHeight}dvh + 42px)` }}
+      >
+        <div className="map-location">
+          <span className="tiny-dot" /> WGS84 · INDONESIA{" "}
+          <span className="mono">
+            {position.y.toFixed(4)}° / {position.x.toFixed(4)}°
+          </span>
+        </div>
+        <div className="map-legend">
+          <span>
+            <i style={{ background: "#0e9381" }} /> Master A
+          </span>
+          <span>
+            <i style={{ background: "#dba052" }} /> Tinjauan B
+          </span>
+          <span className="legend-count">
+            {points.length} titik dalam tampilan
+          </span>
+        </div>
       </div>
       <div className="map-controls">
         <div>
@@ -402,20 +418,6 @@ export function KanvasPeta({
         <button aria-label="Ubah peta dasar" onClick={toggleSatellite}>
           <Layers2 size={18} />
         </button>
-      </div>
-      <div
-        className="map-legend"
-        style={{ bottom: `calc(${drawerHeight}dvh + 42px)` }}
-      >
-        <span>
-          <i style={{ background: "#0e9381" }} /> Master A
-        </span>
-        <span>
-          <i style={{ background: "#dba052" }} /> Tinjauan B
-        </span>
-        <span className="legend-count">
-          {points.length} titik dalam tampilan
-        </span>
       </div>
       {notice && (
         <div className="map-notice" role="status">

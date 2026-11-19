@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { masuk } from "./masuk";
 test("impor 2.501 baris, tukar sumbu, dan lanjutkan batch gagal tanpa duplikasi", async ({
   page,
 }) => {
-  await page.request.post("/api/auth", { data: { demo: true } });
+  await masuk(page);
   await page.goto("/gudang-master");
   await expect(page.locator(".intro")).toHaveCount(0);
   await page

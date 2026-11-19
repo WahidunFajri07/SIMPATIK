@@ -962,6 +962,89 @@ label > select {
 .empty-state p {
   font-size: 12px;
 }
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 860px;
+}
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ffffffe8;
+  border: 1px solid #fff;
+  border-radius: 10px;
+  padding: 13px 16px;
+}
+.account-avatar {
+  width: 33px;
+  height: 33px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9f3ea;
+  color: #43765a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.account-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.account-row strong {
+  font-size: 12px;
+  color: #4d6d57;
+}
+.account-row small {
+  font-size: 10px;
+  color: #94a396;
+}
+.account-date {
+  margin-left: auto;
+  font-size: 9px;
+  color: #a3afa4;
+}
+.account-action {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e4ece2;
+  border-radius: 6px;
+  background: #fff;
+  color: #8fa08f;
+}
+.account-action:hover {
+  background: #eef5ee;
+  color: #43866a;
+}
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.account-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #6d8472;
+}
+.account-form input {
+  padding: 10px 12px;
+  border: 1px solid #e0e9dd;
+  border-radius: 7px;
+  font-size: 12px;
+  background: #fff;
+}
+.account-form input:disabled {
+  background: #f4f7f3;
+  color: #94a295;
+}
 .import-steps {
   display: flex;
   align-items: center;
@@ -1541,27 +1624,36 @@ label > select {
 .workspace-caption p > span {
   color: #7c9d8a;
 }
-.map-location {
+.map-readouts {
   position: absolute;
-  left: 115px;
-  top: calc(50% - 12px);
+  left: 114px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  z-index: 12;
+  pointer-events: none;
+  transition: bottom 0.2s;
+}
+.map-location {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 1px;
-  color: #4f8264;
-  background: #ffffffc4;
-  backdrop-filter: blur(6px);
+  color: #3d6b50;
+  background: #fffffff2;
+  backdrop-filter: blur(8px);
   padding: 8px 12px;
   border: 1px solid #fff;
-  border-radius: 5px;
+  border-radius: 6px;
+  box-shadow: 0 3px 16px #1e4b2d14;
 }
 .map-location .mono {
-  font-size: 8px;
-  color: #8ca791;
+  font-size: 10px;
+  color: #6d8f74;
   letter-spacing: 0;
-  margin-left: 9px;
+  margin-left: 6px;
 }
 .map-controls {
   position: absolute;
@@ -1618,20 +1710,17 @@ label > select {
   margin: 2px 6px;
 }
 .map-legend {
-  position: absolute;
-  left: 114px;
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 9px;
-  color: #557961;
-  background: #ffffffd9;
+  font-size: 10px;
+  color: #3f6b4e;
+  background: #fffffff2;
   backdrop-filter: blur(8px);
   border: 1px solid #fff;
   border-radius: 6px;
-  padding: 10px 13px;
-  pointer-events: none;
-  transition: bottom 0.2s;
+  padding: 9px 13px;
+  box-shadow: 0 3px 16px #1e4b2d14;
 }
 .map-legend > span {
   display: flex;
@@ -1644,8 +1733,8 @@ label > select {
   border-radius: 50%;
 }
 .map-legend .legend-count {
-  color: #8ca38d;
-  font-size: 8px;
+  color: #7a9379;
+  font-size: 9px;
   border-left: 1px solid #e0e9dc;
   padding-left: 15px;
 }
@@ -2318,6 +2407,9 @@ label > select {
   .table-toolbar .filter-label {
     display: none;
   }
+  .map-readouts {
+    left: 20px;
+  }
   .map-location {
     display: none;
   }
@@ -2390,7 +2482,6 @@ label > select {
     right: 20px;
   }
   .map-legend {
-    left: 20px;
     padding: 8px;
     gap: 10px;
   }

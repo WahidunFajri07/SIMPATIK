@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
+    "stop": "node scripts/hentikan-dev.mjs",
+    "restart": "node scripts/hentikan-dev.mjs && next dev --hostname 127.0.0.1",
     "build": "prisma generate && next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
@@ -13,7 +15,8 @@
     "data:contoh": "tsx scripts/buat-data-contoh.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx scripts/isi-contoh.ts",
+    "db:seed": "node --env-file=.env --import tsx scripts/isi-contoh.ts",
+    "akun": "node --env-file=.env --import tsx scripts/akun-cli.ts",
     "postinstall": "node scripts/salin-parser.mjs",
     "format": "prettier --write src scripts tests *.ts *.json *.mjs"
   },

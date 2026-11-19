@@ -84,3 +84,12 @@ model BatchImpor {
   jenis String
   @@map("batch_impor")
 }
+model Pengguna {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  nama String
+  sandi String
+  dibuat DateTime @default(now()) @map("dibuat_pada")
+  diubah DateTime @updatedAt @map("diubah_pada")
+  @@map("pengguna")
+}

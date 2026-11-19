@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, Layers3, Plus, History, LogOut } from "lucide-react";
+import { Map, Layers3, Plus, History, LogOut, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { LayarMuat } from "../animasi/layar-muat";
@@ -27,6 +27,7 @@ export function DockMelayang() {
           { href: "/gudang-master", label: "Gudang master", icon: Layers3 },
           { href: "/ruang-kerja?baru=1", label: "Sesi baru", icon: Plus },
           { href: "/riwayat", label: "Riwayat sesi", icon: History },
+          { href: "/akun", label: "Akun", icon: Users },
         ].map(({ href, label, icon: Icon }) => (
           <Link
             key={label}

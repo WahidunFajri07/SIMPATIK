@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createColumnHelper,
   flexRender,
@@ -15,8 +15,10 @@ import {
   ArrowDownUp,
   CheckCheck,
   ChevronDown,
+  ChevronUp,
   Expand,
   ListFilter,
+  Minimize2,
   Search,
   Table2,
 } from "lucide-react";
@@ -124,6 +126,13 @@ export function LaciTabel({
     [sorting, setSorting] = useState<SortingState>([]),
     [exportOpen, setExportOpen] = useState(false),
     [pending, setPending] = useState(false);
+  // Tinggi terakhir sebelum layar penuh, supaya tombol perkecil bisa kembali.
+  const restore = useRef(45);
+  useEffect(() => {
+    if (height >= 20 && height < 70) restore.current = height;
+  }, [height]);
+  const ringkas = height >= 20;
+  const layarPenuh = height >= 70;
   const scroller = useRef<HTMLDivElement>(null);
   const data = useMemo(
     () =>
@@ -250,14 +259,29 @@ export function LaciTabel({
           ))}
         </div>
         <div className="drawer-size-controls">
-          <button aria-label="Ringkas tabel" onClick={() => onHeight(12)}>
-            <ChevronDown size={16} />
+          <button
+            aria-label={ringkas ? "Ringkas tabel" : "Buka tabel"}
+            aria-expanded={ringkas}
+            onClick={() => {
+              if (ringkas) {
+                restore.current = height;
+                onHeight(12);
+              } else onHeight(restore.current < 20 ? 45 : restore.current);
+            }}
+          >
+            {ringkas ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </button>
           <button
-            aria-label="Perbesar tabel"
-            onClick={() => onHeight(height === 85 ? 45 : 85)}
+            aria-label={layarPenuh ? "Kembalikan ukuran tabel" : "Perbesar tabel"}
+            onClick={() => {
+              if (layarPenuh) onHeight(restore.current < 70 ? 45 : restore.current);
+              else {
+                restore.current = height;
+                onHeight(85);
+              }
+            }}
           >
-            <Expand size={15} />
+            {layarPenuh ? <Minimize2 size={15} /> : <Expand size={15} />}
           </button>
         </div>
       </div>
