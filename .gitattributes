@@ -1,0 +1,2 @@
+# Gunakan LF untuk file teks agar konsisten dengan formatter proyek.
+* text=auto eol=lf

@@ -1,7 +1,10 @@
 node_modules/
 .next/
+# Konfigurasi rahasia lokal tidak boleh masuk Git.
 .env
-.env.local
+.env.*
+*.env
+*.env.*
 .cache/
 data/*.json
 test-results/

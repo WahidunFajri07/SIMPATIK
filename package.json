@@ -17,6 +17,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node --env-file=.env --import tsx scripts/isi-contoh.ts",
     "akun": "node --env-file=.env --import tsx scripts/akun-cli.ts",
+    "env:amankan": "tsx scripts/amankan-env.ts",
+    "env:admin": "tsx scripts/amankan-env.ts --admin",
+    "db:check": "node --env-file=.env --import tsx scripts/periksa-db.ts",
     "postinstall": "node scripts/salin-parser.mjs",
     "format": "prettier --write src scripts tests *.ts *.json *.mjs"
   },

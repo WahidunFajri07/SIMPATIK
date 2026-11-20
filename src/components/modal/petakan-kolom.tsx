@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileSpreadsheet,
   UploadCloud,
@@ -18,6 +18,7 @@ type Buku = {
   sheet: string;
   headers: string[];
   rows: Record<string, unknown>[];
+  nomorBaris: number[];
 };
 export function PetakanKolom({
   open,
@@ -33,7 +34,8 @@ export function PetakanKolom({
   onDone: (result: Master | Sesi, catatan?: string) => void;
 }) {
   const worker = useRef<Worker | null>(null),
-    inputRef = useRef<HTMLInputElement>(null);
+    inputRef = useRef<HTMLInputElement>(null),
+    masalahRef = useRef<HTMLDivElement>(null);
   const lanjut = useRef<{
     fingerprint: string;
     offset: number;
@@ -52,6 +54,22 @@ export function PetakanKolom({
     [progress, setProgress] = useState(0),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [koreksi, setKoreksi] = useState<
+    Record<number, Partial<typeof mapping>>
+  >({});
+  const [diperbaiki, setDiperbaiki] = useState<number[]>([]);
+  const hasilPemetaan = useMemo(() => {
+    if (
+      !buku ||
+      !mapping.x ||
+      !mapping.y ||
+      mapping.x === mapping.y ||
+      [mapping.x, mapping.y].includes(mapping.deskripsi) ||
+      (mode === "master" && !mapping.deskripsi)
+    )
+      return null;
+    return petakanBaris(buku.rows, mapping, mode === "master", buku.nomorBaris);
+  }, [buku, mapping, mode]);
   useEffect(() => {
     if (!open) return;
     lanjut.current = null;
@@ -63,6 +81,8 @@ export function PetakanKolom({
     setProgress(0);
     setBusy(false);
     setParsing(false);
+    setKoreksi({});
+    setDiperbaiki([]);
     setMasterIds(masters.map((m) => m.id));
     const w = new Worker("/pekerja-excel.js");
     worker.current = w;
@@ -73,6 +93,10 @@ export function PetakanKolom({
         return;
       }
       setBuku(data);
+      setKoreksi({});
+      setDiperbaiki([]);
+      setError("");
+      setNotice("");
       const guess = (regex: RegExp) =>
         data.headers.find((h: string) => regex.test(h)) ?? "";
       setMapping({
@@ -116,6 +140,34 @@ export function PetakanKolom({
     setParsing(true);
     worker.current?.postMessage({ file: f });
   }
+  function terapkanKoreksi(index: number, baris: number) {
+    if (!buku || busy || lanjut.current) return;
+    const row = { ...buku.rows[index] };
+    for (const key of ["deskripsi", "x", "y"] as const) {
+      if (mapping[key] && koreksi[index]?.[key] !== undefined)
+        row[mapping[key]] = koreksi[index][key];
+    }
+    const hasil = petakanBaris([row], mapping, mode === "master", [baris]);
+    if (hasil.errors.length) {
+      setError(hasil.errors[0]);
+      return;
+    }
+    setBuku({
+      ...buku,
+      rows: buku.rows.map((r, i) => (i === index ? row : r)),
+    });
+    setKoreksi((sebelumnya) => {
+      const baru = { ...sebelumnya };
+      delete baru[index];
+      return baru;
+    });
+    const selesai = [...new Set([...diperbaiki, index])];
+    setDiperbaiki(selesai);
+    setError("");
+    setNotice(
+      `${jumlah(selesai.length)} baris sudah dikoreksi. Data siap diperiksa kembali.`,
+    );
+  }
   async function simpan() {
     if (!buku) return;
     setError("");
@@ -149,21 +201,34 @@ export function PetakanKolom({
       setError("Pilih master dan toleransi antara 0–10.000 meter.");
       return;
     }
-    const mapped = petakanBaris(buku.rows, mapping, mode === "master");
+    const mapped =
+      hasilPemetaan ??
+      petakanBaris(buku.rows, mapping, mode === "master", buku.nomorBaris);
     if (mapped.errors.length) {
       setError(
-        `${mapped.errors.length} baris perlu diperbaiki. ${mapped.errors.slice(0, 3).join(" ")}`,
+        `${jumlah(mapped.errors.length)} baris perlu diperbaiki. Koreksi nilainya pada bagian Pemeriksaan data.`,
       );
+      masalahRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
       return;
     }
     if (!mapped.titik.length) {
       setError("Tidak ada data untuk diproses.");
       return;
     }
-    if (mapped.ditukar)
-      setNotice(
-        `${jumlah(mapped.ditukar)} koordinat X/Y tertukar dan sudah diperbaiki otomatis.`,
-      );
+    const catatan = [
+      diperbaiki.length
+        ? `${jumlah(diperbaiki.length)} baris dikoreksi sebelum diproses.`
+        : "",
+      mapped.ditukar
+        ? `${jumlah(mapped.ditukar)} koordinat X/Y tertukar dan sudah diperbaiki otomatis.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (catatan) setNotice(catatan);
     setBusy(true);
     const fingerprint = JSON.stringify({
       file,
@@ -230,12 +295,7 @@ export function PetakanKolom({
         );
       }
       if (result) {
-        onDone(
-          result,
-          mapped.ditukar
-            ? `${jumlah(mapped.ditukar)} koordinat X/Y tertukar dan sudah diperbaiki otomatis.`
-            : undefined,
-        );
+        onDone(result, catatan || undefined);
         onClose();
       }
     } catch (e) {
@@ -260,6 +320,29 @@ export function PetakanKolom({
           ? "Unggah sumber acuan, lalu tentukan kolom koordinatnya."
           : "Cocokkan data lapangan dengan satu atau beberapa sumber master."
       }
+      footer={
+        <div className="modal-actions">
+          <Button
+            variant="secondary"
+            disabled={busy || parsing}
+            onClick={onClose}
+          >
+            Batal
+          </Button>
+          <Button
+            disabled={!buku || busy || parsing}
+            onClick={() => void simpan()}
+          >
+            {busy ? (
+              <LoaderCircle className="spin" size={15} />
+            ) : progress === 100 ? (
+              <Check size={15} />
+            ) : null}
+            {mode === "master" ? "Simpan master" : "Mulai pencocokan"}
+            <ArrowRight size={15} />
+          </Button>
+        </div>
+      }
     >
       <div className="import-steps">
         <span className="done">
@@ -278,7 +361,7 @@ export function PetakanKolom({
         ref={inputRef}
         type="file"
         accept=".csv,.xlsx,.xls"
-        className="sr-only"
+        hidden
         aria-label="Pilih file data"
         disabled={busy || parsing}
         onChange={(e) => pilihFile(e.target.files?.[0])}
@@ -344,6 +427,8 @@ export function PetakanKolom({
                 disabled={busy || parsing}
                 onChange={(e) => {
                   setParsing(true);
+                  setError("");
+                  setNotice("");
                   worker.current?.postMessage({ sheet: e.target.value });
                 }}
               >
@@ -428,9 +513,11 @@ export function PetakanKolom({
                   aria-label={c.label}
                   value={mapping[c.key as keyof typeof mapping]}
                   disabled={busy}
-                  onChange={(e) =>
-                    setMapping({ ...mapping, [c.key]: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setMapping({ ...mapping, [c.key]: e.target.value });
+                    setKoreksi({});
+                    setError("");
+                  }}
                 >
                   <option value="">
                     {c.key === "deskripsi" && mode === "tinjauan"
@@ -475,6 +562,75 @@ export function PetakanKolom({
           )}
         </div>
       )}
+      {!!hasilPemetaan?.masalah.length && buku && (
+        <div
+          className="import-validation"
+          ref={masalahRef}
+          role="region"
+          aria-label="Pemeriksaan data"
+        >
+          <strong>
+            {jumlah(hasilPemetaan.masalah.length)} baris perlu diperbaiki
+          </strong>
+          <p>
+            Periksa nilai pada baris berikut, lalu terapkan koreksi. Longitude
+            harus antara −180 dan 180, latitude antara −90 dan 90.
+          </p>
+          {hasilPemetaan.masalah.slice(0, 20).map(({ index, baris, pesan }) => (
+            <div className="import-issue" key={index}>
+              <strong>Baris {baris}</strong>
+              <p>{pesan}</p>
+              <div className="form-grid three">
+                {(
+                  [
+                    { key: "deskripsi", label: "Deskripsi" },
+                    { key: "x", label: "Longitude" },
+                    { key: "y", label: "Latitude" },
+                  ] as const
+                )
+                  .filter(({ key }) => !!mapping[key])
+                  .map(({ key, label }) => (
+                    <label key={key}>
+                      {label}
+                      <input
+                        aria-label={`${label} baris ${baris}`}
+                        inputMode={key === "deskripsi" ? "text" : "decimal"}
+                        value={
+                          koreksi[index]?.[key] ??
+                          String(buku.rows[index][mapping[key]] ?? "")
+                        }
+                        disabled={busy || !!lanjut.current}
+                        onChange={(e) =>
+                          setKoreksi((sebelumnya) => ({
+                            ...sebelumnya,
+                            [index]: {
+                              ...sebelumnya[index],
+                              [key]: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+              </div>
+              <Button
+                variant="secondary"
+                disabled={busy || !!lanjut.current}
+                aria-label={`Terapkan koreksi baris ${baris}`}
+                onClick={() => terapkanKoreksi(index, baris)}
+              >
+                Terapkan koreksi
+              </Button>
+            </div>
+          ))}
+          {hasilPemetaan.masalah.length > 20 && (
+            <p>
+              Menampilkan 20 baris pertama. Baris berikutnya muncul setelah
+              koreksi diterapkan.
+            </p>
+          )}
+        </div>
+      )}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -497,27 +653,6 @@ export function PetakanKolom({
           <span>{progress}% · Memproses batch 2.500 baris…</span>
         </div>
       )}
-      <div className="modal-actions">
-        <Button
-          variant="secondary"
-          disabled={busy || parsing}
-          onClick={onClose}
-        >
-          Batal
-        </Button>
-        <Button
-          disabled={!buku || busy || parsing}
-          onClick={() => void simpan()}
-        >
-          {busy ? (
-            <LoaderCircle className="spin" size={15} />
-          ) : progress === 100 ? (
-            <Check size={15} />
-          ) : null}
-          {mode === "master" ? "Simpan master" : "Mulai pencocokan"}
-          <ArrowRight size={15} />
-        </Button>
-      </div>
     </Modal>
   );
 }

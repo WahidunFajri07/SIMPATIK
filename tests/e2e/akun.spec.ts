@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
-const env = readFileSync(".env", "utf8");
-const ambil = (k: string) =>
-  env.match(new RegExp(`^${k}="?([^"\\n]*)`, "m"))?.[1] ?? "";
+import { envVar as ambil } from "./masuk";
 const sandiBaru = ["sandi", "baru", "5678"].join("-");
 const masa = Date.now();
 
-async function masukAdmin(request: import("@playwright/test").APIRequestContext) {
+async function masukAdmin(
+  request: import("@playwright/test").APIRequestContext,
+) {
   await request.delete("/api/auth");
   expect(
     (
@@ -76,9 +75,7 @@ test("kelola akun: tambah, login, ubah, hapus", async ({ page, request }) => {
       })
     ).ok(),
   ).toBeTruthy();
-  expect(
-    (await request.get("/api/akun")).ok(),
-  ).toBeTruthy();
+  expect((await request.get("/api/akun")).ok()).toBeTruthy();
 
   // Sandi lama mati, sandi baru berlaku
   await request.delete("/api/auth");
@@ -125,9 +122,7 @@ test("kelola akun: tambah, login, ubah, hapus", async ({ page, request }) => {
   // Id acak: 404, id bukan uuid: 400
   expect(
     (
-      await request.delete(
-        "/api/akun?id=00000000-0000-4000-8000-000000000099",
-      )
+      await request.delete("/api/akun?id=00000000-0000-4000-8000-000000000099")
     ).status(),
   ).toBe(404);
   expect((await request.delete("/api/akun?id=bukan-uuid")).status()).toBe(400);
@@ -149,8 +144,7 @@ test("kelola akun: tambah, login, ubah, hapus", async ({ page, request }) => {
   await masukAdmin(request);
   const daftar = await (await request.get("/api/akun")).json();
   for (const a of daftar.akun as { id: string; email: string }[])
-    if (a.email === kedua.email)
-      await request.delete(`/api/akun?id=${a.id}`);
+    if (a.email === kedua.email) await request.delete(`/api/akun?id=${a.id}`);
 });
 
 test("halaman akun menolak tamu", async ({ page }) => {

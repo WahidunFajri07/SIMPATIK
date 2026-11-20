@@ -32,9 +32,11 @@ export function petakanBaris(
   rows: Record<string, unknown>[],
   mapping: { deskripsi: string; x: string; y: string },
   wajibDeskripsi: boolean,
+  nomorBaris?: readonly number[],
 ) {
   const titik: Titik[] = [],
-    errors: string[] = [];
+    errors: string[] = [],
+    masalah: { index: number; baris: number; pesan: string }[] = [];
   let ditukar = 0;
   rows.forEach((row, i) => {
     try {
@@ -45,8 +47,11 @@ export function petakanBaris(
       if (k.ditukar) ditukar++;
       titik.push({ deskripsi, x: k.x, y: k.y, info: row });
     } catch (e) {
-      errors.push(`Baris ${i + 2}: ${(e as Error).message}`);
+      const baris = nomorBaris?.[i] ?? i + 2;
+      const pesan = (e as Error).message;
+      errors.push(`Baris ${baris}: ${pesan}`);
+      masalah.push({ index: i, baris, pesan });
     }
   });
-  return { titik, errors, ditukar };
+  return { titik, errors, ditukar, masalah };
 }

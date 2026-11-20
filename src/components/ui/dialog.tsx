@@ -7,12 +7,14 @@ export function Modal({
   title,
   description,
   children,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
@@ -30,7 +32,8 @@ export function Modal({
               <X size={20} />
             </Dialog.Close>
           </div>
-          {children}
+          <div className="modal-body">{children}</div>
+          {footer && <div className="modal-footer">{footer}</div>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

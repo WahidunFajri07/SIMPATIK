@@ -85,6 +85,47 @@ test("deskripsi B opsional; master tetap wajib punya identitas", () => {
     1,
   );
 });
+
+test("latitude tanpa desimal ditolak dan dapat dikoreksi tanpa kehilangan baris lain", () => {
+  const rows = Array.from({ length: 5586 }, (_, i) => ({
+    description: `T${i}`,
+    longitudex: 108.545097,
+    latitudey: -6.697219,
+  }));
+  rows[427].latitudey = -6697219;
+  const mapping = { deskripsi: "description", x: "longitudex", y: "latitudey" };
+  const hasil = petakanBaris(rows, mapping, false);
+  assert.equal(hasil.titik.length, 5585);
+  assert.deepEqual(hasil.masalah, [
+    {
+      index: 427,
+      baris: 429,
+      pesan: "Koordinat tidak valid. X harus -180–180 dan Y -90–90.",
+    },
+  ]);
+  assert.equal(rows[427].latitudey, -6697219);
+  const diperbaiki = rows.map((r, i) =>
+    i === 427 ? { ...r, latitudey: -6.697219 } : r,
+  );
+  const valid = petakanBaris(diperbaiki, mapping, false);
+  assert.equal(valid.titik.length, 5586);
+  assert.equal(valid.errors.length, 0);
+  assert.equal(valid.titik[427].y, -6.697219);
+});
+
+test("nomor kesalahan mengikuti baris sumber setelah baris kosong dilewati", () => {
+  const hasil = petakanBaris(
+    [
+      { X: 108, Y: -7 },
+      { X: 108, Y: -6697219 },
+    ],
+    { deskripsi: "", x: "X", y: "Y" },
+    false,
+    [3, 429],
+  );
+  assert.equal(hasil.masalah[0].baris, 429);
+  assert.match(hasil.errors[0], /^Baris 429:/);
+});
 test("kode sama dari beberapa master memilih kode dengan jarak paling dekat", () => {
   const h = match({ deskripsi: "trf-001a", x: 107.600299, y: -6.9 }, "1", "s");
   assert.equal(h.masterId, "3");

@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { cookies } from "next/headers";
 import { endpoint, json, body, ApiError } from "@/lib/api";
-import { tokenBaru, sama, demoDiizinkan } from "@/lib/auth";
+import { tokenBaru, demoDiizinkan } from "@/lib/auth";
 import { cocokSandi } from "@/lib/akun";
+import { cocokAdminEnv } from "@/lib/admin-env";
 import { db, pakaiPostgis } from "@/lib/db";
 const attempts = new Map<string, { n: number; until: number }>();
 export const POST = endpoint(async (req) => {
@@ -26,16 +27,15 @@ export const POST = endpoint(async (req) => {
   const demo = input.demo && demoDiizinkan();
   let email = process.env.ADMIN_EMAIL;
   if (!demo) {
-    // Akun di database didahulukan; ADMIN_EMAIL/ADMIN_PASSWORD tetap jadi pintu darurat.
+    // Akun di database didahulukan; admin env memakai hash, tanpa sandi polos.
     const akun = pakaiPostgis
       ? await db().pengguna.findUnique({ where: { email: input.email ?? "" } })
       : null;
-    const dbCocok = akun && (await cocokSandi(input.password ?? "", akun.sandi));
+    const dbCocok =
+      akun && (await cocokSandi(input.password ?? "", akun.sandi));
     const envCocok =
-      !!process.env.ADMIN_EMAIL &&
-      !!process.env.ADMIN_PASSWORD &&
-      sama(input.email ?? "", process.env.ADMIN_EMAIL) &&
-      sama(input.password ?? "", process.env.ADMIN_PASSWORD);
+      !dbCocok &&
+      (await cocokAdminEnv(input.email ?? "", input.password ?? ""));
     if (!dbCocok && !envCocok) {
       if (attempts.size > 10000) attempts.clear();
       attempts.set(key, {
