@@ -12,7 +12,11 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { DialogHapus, DialogUbahMaster } from "@/components/ui/dialog-aksi";
+import {
+  DialogHapus,
+  DialogHapusBanyak,
+  DialogUbahMaster,
+} from "@/components/ui/dialog-aksi";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { PetakanKolom } from "@/components/modal/petakan-kolom";
@@ -137,6 +141,7 @@ export default function Page() {
     [match, setMatch] = useState(false),
     [ubah, setUbah] = useState<Master | null>(null),
     [hapus, setHapus] = useState<Master | null>(null),
+    [hapusBanyak, setHapusBanyak] = useState(false),
     [toast, setToast] = useState("");
   async function load() {
     try {
@@ -164,6 +169,16 @@ export default function Page() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const visibleIds = visible.map((m) => m.id),
+    allVisibleSelected =
+      visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
+  function pilihSemuaVisible() {
+    setSelected((current) =>
+      allVisibleSelected
+        ? current.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...current, ...visibleIds])],
+    );
+  }
   return (
     <main className="collection-page">
       <LatarInteraktif />
@@ -200,6 +215,15 @@ export default function Page() {
         </div>
         <div className="collection-toolbar">
           <div className="category-tabs">
+            <label className="bulk-select">
+              <input
+                type="checkbox"
+                aria-label="Pilih semua master yang terlihat"
+                checked={allVisibleSelected}
+                onChange={pilihSemuaVisible}
+              />
+              Pilih semua
+            </label>
             {["SEMUA", ...new Set(masters.map((m) => m.kategori))].map((c) => (
               <button
                 key={c}
@@ -299,6 +323,13 @@ export default function Page() {
             <b>{selected.length}</b> master dipilih
           </span>
           <button onClick={() => setSelected([])}>Batalkan</button>
+          <Button
+            variant="secondary"
+            className="btn-danger-outline"
+            onClick={() => setHapusBanyak(true)}
+          >
+            <Trash2 size={15} /> Hapus terpilih
+          </Button>
           <Button onClick={() => setMatch(true)}>
             Cocokkan data <ArrowUpRight size={16} />
           </Button>
@@ -333,6 +364,25 @@ export default function Page() {
           });
           setUbah(null);
           setToast(`Master diubah menjadi “${nama}”.`);
+          void load();
+        }}
+      />
+      <DialogHapusBanyak
+        open={hapusBanyak}
+        judul="Hapus sumber master terpilih"
+        jumlah={selected.length}
+        akibat="Semua titik koordinat dari master terpilih ikut terhapus dan tidak bisa dikembalikan."
+        catatan="Tinjauan lama tetap ada, tetapi pasangan titik master yang terhapus menjadi kosong."
+        onClose={() => setHapusBanyak(false)}
+        onHapus={async () => {
+          const ids = selected;
+          await api("/api/master", {
+            method: "DELETE",
+            body: JSON.stringify({ ids }),
+          });
+          setSelected([]);
+          setHapusBanyak(false);
+          setToast(`${ids.length} master dihapus.`);
           void load();
         }}
       />

@@ -11,7 +11,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { DialogHapus, DialogUbahNama } from "@/components/ui/dialog-aksi";
+import {
+  DialogHapus,
+  DialogHapusBanyak,
+  DialogUbahNama,
+} from "@/components/ui/dialog-aksi";
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { api, jumlah } from "@/lib/klien";
@@ -24,6 +28,8 @@ export default function Page() {
     [mode, setMode] = useState(""),
     [ubah, setUbah] = useState<Sesi | null>(null),
     [hapus, setHapus] = useState<Sesi | null>(null),
+    [hapusBanyak, setHapusBanyak] = useState(false),
+    [selected, setSelected] = useState<string[]>([]),
     [toast, setToast] = useState("");
   async function load() {
     try {
@@ -47,6 +53,19 @@ export default function Page() {
     const t = setTimeout(() => setToast(""), 4500);
     return () => clearTimeout(t);
   }, [toast]);
+  const visible = sessions.filter((s) =>
+    s.nama.toLowerCase().includes(search.toLowerCase()),
+  );
+  const visibleIds = visible.map((s) => s.id),
+    allVisibleSelected =
+      visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
+  function pilihSemuaVisible() {
+    setSelected((current) =>
+      allVisibleSelected
+        ? current.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...current, ...visibleIds])],
+    );
+  }
   return (
     <main className="collection-page">
       <LatarInteraktif />
@@ -78,7 +97,17 @@ export default function Page() {
             ditinjau
           </span>
         </div>
-        <div className="search-field history-search">
+        <div className="history-toolbar">
+          <label className="bulk-select">
+            <input
+              type="checkbox"
+              aria-label="Pilih semua sesi yang terlihat"
+              checked={allVisibleSelected}
+              onChange={pilihSemuaVisible}
+            />
+            Pilih semua
+          </label>
+          <div className="search-field history-search">
           <Search size={15} />
           <input
             aria-label="Cari riwayat sesi"
@@ -86,6 +115,7 @@ export default function Page() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          </div>
         </div>
         {error && (
           <div className="error" role="alert">
@@ -94,25 +124,36 @@ export default function Page() {
         )}
         <div className="history-list">
           <AnimatePresence initial={false}>
-            {sessions
-              .filter((s) =>
-                s.nama.toLowerCase().includes(search.toLowerCase()),
-              )
-              .map((s, i) => (
-                <motion.article
-                  key={s.id}
-                  layout
-                  exit={{
-                    opacity: 0,
-                    x: 24,
-                    transition: { duration: 0.25 },
-                  }}
-                  className="history-row"
-                >
-                  <span className="history-index">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="history-title">
+            {visible.map((s, i) => (
+              <motion.article
+                key={s.id}
+                layout
+                exit={{
+                  opacity: 0,
+                  x: 24,
+                  transition: { duration: 0.25 },
+                }}
+                className="history-row"
+              >
+                <label className="history-select">
+                    <input
+                      type="checkbox"
+                      aria-label={`Pilih ${s.nama}`}
+                      checked={selected.includes(s.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setSelected((current) =>
+                          e.target.checked
+                            ? [...current, s.id]
+                            : current.filter((id) => id !== s.id),
+                        );
+                      }}
+                    />
+                </label>
+                <span className="history-index">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="history-title">
                     <span>
                       {new Date(s.dibuat).toLocaleString("id-ID", {
                         dateStyle: "medium",
@@ -184,6 +225,36 @@ export default function Page() {
           </div>
         )}
       </div>
+      {selected.length > 0 && (
+        <div className="selection-bar history-selection-bar">
+          <span>
+            <b>{selected.length}</b> sesi dipilih
+          </span>
+          <button onClick={() => setSelected([])}>Batalkan</button>
+          <button className="btn btn-danger" onClick={() => setHapusBanyak(true)}>
+            <Trash2 size={14} /> Hapus terpilih
+          </button>
+        </div>
+      )}
+      <DialogHapusBanyak
+        open={hapusBanyak}
+        judul="Hapus sesi terpilih"
+        jumlah={selected.length}
+        akibat="Hasil pencocokan dan keputusan dari sesi terpilih ikut terhapus permanen."
+        catatan="Sumber master acuan tetap aman."
+        onClose={() => setHapusBanyak(false)}
+        onHapus={async () => {
+          const ids = selected;
+          await api("/api/sesi", {
+            method: "DELETE",
+            body: JSON.stringify({ ids }),
+          });
+          setSelected([]);
+          setHapusBanyak(false);
+          setToast(`${ids.length} sesi dihapus.`);
+          void load();
+        }}
+      />
       <DialogUbahNama
         open={!!ubah}
         judul="Ubah nama sesi"

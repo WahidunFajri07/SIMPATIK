@@ -34,6 +34,25 @@ test("fase 4–5: pencocokan, peta, konfirmasi, ekspor dan riwayat", async ({
   await expect(
     page.getByRole("complementary", { name: "Inspeksi titik" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Lihat detail", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pakai koordinat master", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Konfirmasi titik B valid", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Lihat detail", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Kembalikan kartu", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Kembalikan kartu", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Lihat detail", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Terima deskripsi master", exact: true })
     .click();

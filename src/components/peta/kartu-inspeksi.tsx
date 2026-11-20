@@ -9,8 +9,10 @@ import {
   MoveUpRight,
   LoaderCircle,
   PencilLine,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { StatusBadge } from "../tabel/laci-tabel";
 import { Button } from "../ui/button";
 import { kirim, meter } from "@/lib/klien";
@@ -24,12 +26,15 @@ export function KartuInspeksi({
   onClose: () => void;
   onUpdate: (h: Hasil) => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
+    [detail, setDetail] = useState(false),
     [custom, setCustom] = useState(false),
     [x, setX] = useState(""),
     [y, setY] = useState("");
   useEffect(() => {
+    setDetail(false);
     setCustom(false);
     setError("");
     setX(String(h.hasilX ?? h.bx));
@@ -66,23 +71,44 @@ export function KartuInspeksi({
   }
   return (
     <motion.aside
-      className="inspection-card"
+      className={`inspection-card ${detail ? "inspection-card-detail" : ""}`}
       initial={{ opacity: 0, x: 15 }}
-      animate={{ opacity: 1, x: 0 }}
+      animate={{ opacity: 1, x: 0, scale: detail || reduceMotion ? 1 : 0.985 }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { type: "spring", stiffness: 280, damping: 28 }
+      }
       aria-label="Inspeksi titik"
     >
       <header>
         <span className="eyebrow">INSPEKSI TITIK</span>
-        <button
-          className="icon-btn"
-          onClick={onClose}
-          aria-label="Tutup inspeksi"
-        >
-          <X size={16} />
-        </button>
+        <div className="inspection-header-actions">
+          <button
+            className="inspection-detail-toggle"
+            onClick={() => setDetail(!detail)}
+            aria-label={detail ? "Kembalikan kartu" : "Lihat detail"}
+          >
+            {detail ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            <span>{detail ? "Kembalikan kartu" : "Lihat detail"}</span>
+          </button>
+          <button
+            className="icon-btn"
+            onClick={onClose}
+            aria-label="Tutup inspeksi"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </header>
       <h2>{h.deskripsiB || h.deskripsiA || "Titik tanpa deskripsi"}</h2>
       <StatusBadge status={h.status} />
+      {detail && (
+        <div className="inspection-detail-intro">
+          <span>PERBANDINGAN KOORDINAT</span>
+          <p>Periksa sumber master, data tinjauan, jarak, dan keputusan sebelum menyimpan.</p>
+        </div>
+      )}
       <div className="compare-point">
         <span className="point-letter master-letter">A</span>
         <div>

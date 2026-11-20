@@ -60,6 +60,59 @@ export function DialogHapus({
 }
 
 /** Dialog ubah master: nama + kategori. */
+export function DialogHapusBanyak({
+  open,
+  judul,
+  jumlah,
+  akibat,
+  catatan,
+  onClose,
+  onHapus,
+}: {
+  open: boolean;
+  judul: string;
+  jumlah: number;
+  akibat: string;
+  catatan?: string;
+  onClose: () => void;
+  onHapus: () => Promise<void>;
+}) {
+  const [hapus, setHapus] = useState(false);
+  useEffect(() => {
+    if (open) setHapus(false);
+  }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title={judul} description={akibat}>
+      <div className="danger-note">
+        <AlertTriangle size={15} />
+        <div>
+          <strong>{jumlah} item dipilih</strong>
+          {catatan && <p>{catatan}</p>}
+        </div>
+      </div>
+      <div className="modal-actions">
+        <Button variant="secondary" onClick={onClose}>
+          Batal
+        </Button>
+        <Button
+          className="btn-danger"
+          disabled={hapus}
+          onClick={async () => {
+            setHapus(true);
+            try {
+              await onHapus();
+            } finally {
+              setHapus(false);
+            }
+          }}
+        >
+          <Trash2 size={15} /> {hapus ? "Menghapus…" : "Hapus permanen"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 export function DialogUbahMaster({
   master,
   onClose,

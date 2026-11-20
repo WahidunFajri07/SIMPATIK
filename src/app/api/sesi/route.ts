@@ -1,6 +1,6 @@
 import { endpoint, json, uuid, body, ApiError } from "@/lib/api";
 import { z } from "zod";
-import { daftarSesi, bacaHasil, ubahSesi, hapusSesi } from "@/lib/repositori";
+import { daftarSesi, bacaHasil, ubahSesi, hapusSesiBanyak } from "@/lib/repositori";
 export const GET = endpoint(async (req) => {
   const q = new URL(req.url).searchParams;
   const id = q.get("id");
@@ -28,6 +28,17 @@ export const PATCH = endpoint(async (req) => {
   return json(await ubahSesi(i.id, i.nama));
 });
 export const DELETE = endpoint(async (req) => {
-  await hapusSesi(uuid.parse(new URL(req.url).searchParams.get("id") ?? ""));
+  const queryId = new URL(req.url).searchParams.get("id");
+  const ids = queryId
+    ? [uuid.parse(queryId)]
+    : (await body(
+        req,
+        z.object({
+          ids: z.array(uuid).min(1).max(100),
+        }),
+      )).ids;
+  if (new Set(ids).size !== ids.length)
+    throw new ApiError("ID sesi tidak boleh duplikat.");
+  await hapusSesiBanyak(ids);
   return json({ ok: true });
 });

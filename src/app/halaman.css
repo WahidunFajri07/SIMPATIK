@@ -25,6 +25,10 @@
   max-width: 350px;
   margin: 0 0 25px;
 }
+.history-toolbar .history-search {
+  flex: 1;
+  margin-bottom: 0;
+}
 .history-list {
   display: flex;
   flex-direction: column;
@@ -36,6 +40,9 @@
   gap: 22px;
   padding: 26px 10px;
   border-bottom: 1px solid #dce5dc;
+}
+.history-select {
+  flex-shrink: 0;
 }
 .history-index {
   font-family: "JetBrains Mono";
