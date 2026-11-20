@@ -2,19 +2,34 @@ import { z } from "zod";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { endpoint, json, body, uuid, ApiError } from "@/lib/api";
-import { konfirmasi, bacaHasil, daftarSesi } from "@/lib/repositori";
+import {
+  konfirmasi,
+  konfirmasiBanyak,
+  bacaHasil,
+  daftarSesi,
+} from "@/lib/repositori";
 import { KEPUTUSAN } from "@/lib/tipe";
 export const POST = endpoint(async (req) => {
   const input = await body(
     req,
-    z.object({
-      id: z.string().regex(/^\d+$/),
-      sesiId: uuid,
-      keputusan: z.enum(KEPUTUSAN).exclude(["BELUM_DITINJAU"]),
-      x: z.number().finite().min(-180).max(180).optional(),
-      y: z.number().finite().min(-90).max(90).optional(),
-    }),
+    z.union([
+      z.object({
+        id: z.string().regex(/^\d+$/),
+        sesiId: uuid,
+        keputusan: z.enum(KEPUTUSAN).exclude(["BELUM_DITINJAU"]),
+        x: z.number().finite().min(-180).max(180).optional(),
+        y: z.number().finite().min(-90).max(90).optional(),
+      }),
+      z.object({
+        ids: z.array(z.string().regex(/^\d+$/)).min(1).max(500),
+        sesiId: uuid,
+        keputusan: z
+          .enum(KEPUTUSAN)
+          .exclude(["BELUM_DITINJAU", "PAKAI_KOORDINAT_BARU"]),
+      }),
+    ]),
   );
+  if ("ids" in input) return json(await konfirmasiBanyak(input));
   return json(await konfirmasi(input));
 });
 // Prevent spreadsheet formula execution while preserving original source coordinates.

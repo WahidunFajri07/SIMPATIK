@@ -316,11 +316,12 @@ export async function bacaHasil(
   sesiId: string,
   offset = 0,
   limit = 1000,
+  belum = false,
 ): Promise<Hasil[]> {
   return pakaiPostgis
     ? serial(
         await db().hasilPencocokan.findMany({
-          where: { sesiId },
+          where: { sesiId, ...(belum ? { keputusan: "BELUM_DITINJAU" } : {}) },
           skip: offset,
           take: limit,
           orderBy: { id: "asc" },
@@ -328,7 +329,11 @@ export async function bacaHasil(
       )
     : lokal((s) =>
         s.hasil
-          .filter((h) => h.sesiId === sesiId)
+          .filter(
+            (h) =>
+              h.sesiId === sesiId &&
+              (!belum || h.keputusan === "BELUM_DITINJAU"),
+          )
           .slice(offset, offset + limit),
       );
 }
@@ -339,6 +344,47 @@ type Konfirmasi = {
   x?: number;
   y?: number;
 };
+export type KonfirmasiBanyak = {
+  sesiId: string;
+  ids: string[];
+  keputusan: Exclude<Keputusan, "BELUM_DITINJAU" | "PAKAI_KOORDINAT_BARU">;
+};
+const BATAS_KONFIRMASI_MASSAL = 500;
+export function rencanakanKonfirmasiBanyak(
+  hasil: Hasil[],
+  input: KonfirmasiBanyak,
+) {
+  if (!input.ids.length) throw new ApiError("Pilih minimal satu titik.");
+  if (input.ids.length > BATAS_KONFIRMASI_MASSAL)
+    throw new ApiError(
+      `Maksimal ${BATAS_KONFIRMASI_MASSAL} titik per permintaan.`,
+      413,
+    );
+  if (new Set(input.ids).size !== input.ids.length)
+    throw new ApiError("ID titik tidak boleh duplikat.");
+  if ((input.keputusan as string) === "PAKAI_KOORDINAT_BARU")
+    throw new ApiError("Koordinat baru tidak bisa diterapkan massal.");
+  const byId = new Map(hasil.map((h) => [h.id, h]));
+  const target = input.ids.map((id) => byId.get(id));
+  if (target.some((h) => !h))
+    throw new ApiError("Sebagian titik tidak ditemukan pada sesi ini.", 404);
+  const validTarget = target as Hasil[];
+  const perubahan = validTarget.map((h) => ({
+    h,
+    data: terapkanKeputusan(h, {
+      id: h.id,
+      sesiId: input.sesiId,
+      keputusan: input.keputusan,
+    }),
+  }));
+  return {
+    perubahan,
+    diperbarui: perubahan.length,
+    baruDikonfirmasi: perubahan.filter(
+      ({ h }) => h.keputusan === "BELUM_DITINJAU",
+    ).length,
+  };
+}
 export function terapkanKeputusan(h: Hasil, input: Konfirmasi) {
   const perluMaster = [
     "PAKAI_KOORDINAT_MASTER",
@@ -375,6 +421,57 @@ export function terapkanKeputusan(h: Hasil, input: Konfirmasi) {
         ? h.deskripsiA
         : h.deskripsiB || h.deskripsiA,
   };
+}
+export async function konfirmasiBanyak(input: KonfirmasiBanyak) {
+  if (!pakaiPostgis)
+    return lokal((s) => {
+      const target = s.hasil.filter(
+        (h) => h.sesiId === input.sesiId && input.ids.includes(h.id),
+      );
+      const rencana = rencanakanKonfirmasiBanyak(target, input);
+      for (const { h, data } of rencana.perubahan) Object.assign(h, data);
+      const sesi = s.sesi.find((a) => a.id === input.sesiId);
+      if (sesi) sesi.dikonfirmasi += rencana.baruDikonfirmasi;
+      return {
+        diperbarui: rencana.diperbarui,
+        baruDikonfirmasi: rencana.baruDikonfirmasi,
+      };
+    }, true);
+  return db().$transaction(
+    async (tx) => {
+      await tx.$queryRaw`
+        SELECT id
+        FROM hasil_pencocokan
+        WHERE sesi_id = ${input.sesiId}::uuid
+          AND id IN (${Prisma.join(input.ids.map((id) => Prisma.sql`${BigInt(id)}`))})
+        FOR UPDATE`;
+      const rows = serial<Hasil[]>(
+        await tx.hasilPencocokan.findMany({
+          where: {
+            sesiId: input.sesiId,
+            id: { in: input.ids.map((id) => BigInt(id)) },
+          },
+          orderBy: { id: "asc" },
+        }),
+      );
+      const rencana = rencanakanKonfirmasiBanyak(rows, input);
+      for (const { h, data } of rencana.perubahan)
+        await tx.hasilPencocokan.update({
+          where: { id: BigInt(h.id) },
+          data,
+        });
+      if (rencana.baruDikonfirmasi)
+        await tx.sesiPencocokan.update({
+          where: { id: input.sesiId },
+          data: { dikonfirmasi: { increment: rencana.baruDikonfirmasi } },
+        });
+      return {
+        diperbarui: rencana.diperbarui,
+        baruDikonfirmasi: rencana.baruDikonfirmasi,
+      };
+    },
+    { timeout: 120000 },
+  );
 }
 export async function konfirmasi(input: Konfirmasi): Promise<Hasil> {
   if (!pakaiPostgis)

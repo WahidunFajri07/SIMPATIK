@@ -7,7 +7,8 @@ export const GET = endpoint(async (req) => {
   if (!id) return json({ sesi: await daftarSesi() });
   uuid.parse(id);
   const offset = Number(q.get("offset") ?? 0),
-    limit = Number(q.get("limit") ?? 1000);
+    limit = Number(q.get("limit") ?? 1000),
+    belum = q.get("belum") === "1";
   if (
     !Number.isInteger(offset) ||
     offset < 0 ||
@@ -18,7 +19,7 @@ export const GET = endpoint(async (req) => {
     throw new ApiError("Paginasi tidak valid.");
   const sesi = (await daftarSesi()).find((s) => s.id === id);
   if (!sesi) throw new ApiError("Sesi tidak ditemukan.", 404);
-  return json({ sesi, hasil: await bacaHasil(id, offset, limit) });
+  return json({ sesi, hasil: await bacaHasil(id, offset, limit, belum) });
 });
 export const PATCH = endpoint(async (req) => {
   const i = await body(

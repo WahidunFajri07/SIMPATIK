@@ -635,6 +635,222 @@ label > select {
   padding: 56px 55px 100px;
   max-width: 1640px;
 }
+.validation-page .collection-body {
+  max-width: 1560px;
+}
+.validation-panel {
+  margin-top: 34px;
+  border: 1px solid #e1e9e3;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 18px 50px rgba(58, 88, 72, 0.06);
+  overflow: hidden;
+}
+.validation-toolbar,
+.validation-filters,
+.validation-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+}
+.validation-toolbar {
+  justify-content: space-between;
+  border-bottom: 1px solid #e7eee8;
+}
+.validation-toolbar label {
+  display: grid;
+  gap: 6px;
+  min-width: min(460px, 100%);
+  color: #82938a;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.validation-toolbar select,
+.validation-filters select {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #fff;
+  color: #3e5c4e;
+  font-size: 11px;
+}
+.validation-progress {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  color: #86968d;
+  font-size: 10px;
+}
+.validation-progress strong {
+  color: #39735b;
+  font-family: "JetBrains Mono";
+  font-size: 20px;
+  font-weight: 500;
+}
+.validation-filters {
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e7eee8;
+  background: #fbfdfb;
+}
+.validation-filters .filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: #7c9085;
+  font-size: 10px;
+}
+.validation-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #7d9085;
+  font-size: 10px;
+}
+.validation-page-size select {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+.validation-count {
+  color: #87978f;
+  font-size: 10px;
+}
+.validation-table-wrap {
+  overflow-x: auto;
+}
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+.validation-table th,
+.validation-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf2ee;
+  text-align: left;
+  vertical-align: middle;
+}
+.validation-table th {
+  color: #84958b;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.validation-table td:first-child,
+.validation-table th:first-child {
+  width: 48px;
+  text-align: center;
+}
+.validation-table td strong,
+.validation-table td small {
+  display: block;
+}
+.validation-table td strong {
+  color: #49665a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.validation-table td small {
+  margin-top: 5px;
+  color: #91a097;
+  font-family: "JetBrains Mono";
+  font-size: 9px;
+}
+.validation-table tbody tr {
+  transition: background 160ms ease;
+}
+.validation-table tbody tr:hover {
+  background: #f6faf6;
+}
+.validation-footer {
+  justify-content: space-between;
+  color: #7e9186;
+  font-size: 10px;
+}
+.validation-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.validation-page-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #7e9186;
+  font-size: 10px;
+}
+.validation-page-number input {
+  width: 48px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #dce7df;
+  border-radius: 7px;
+  color: #49665a;
+  font-family: "JetBrains Mono";
+  font-size: 10px;
+  text-align: center;
+}
+.validation-pagination button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #dce7df;
+  border-radius: 7px;
+  background: #fff;
+  color: #527464;
+}
+.validation-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.validation-action-bar {
+  position: fixed;
+  z-index: 20;
+  right: 28px;
+  bottom: 28px;
+  left: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 12px 15px;
+  border: 1px solid #cfe2d5;
+  border-radius: 13px;
+  background: rgba(250, 255, 251, 0.96);
+  box-shadow: 0 16px 40px rgba(39, 83, 61, 0.14);
+  backdrop-filter: blur(14px);
+}
+.validation-action-bar > span {
+  margin-right: auto;
+  color: #527565;
+  font-size: 11px;
+}
+.validation-action-bar > button:last-child {
+  border: 0;
+  background: transparent;
+  color: #7c9185;
+  font-size: 10px;
+}
+.validation-confirm-note {
+  display: flex;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #d5e7da;
+  border-radius: 10px;
+  background: #f3faf4;
+  color: #42725a;
+}
+.validation-confirm-note p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
 .page-title-row {
   display: flex;
   align-items: center;
@@ -1460,6 +1676,33 @@ label > select {
   .collection-body {
     margin: 0;
     padding: 32px 22px 120px;
+  }
+  .validation-toolbar,
+  .validation-filters,
+  .validation-footer {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 15px;
+  }
+  .validation-toolbar label {
+    min-width: 0;
+  }
+  .validation-progress {
+    text-align: left;
+  }
+  .validation-filters .filter-label {
+    margin-left: 0;
+  }
+  .validation-action-bar {
+    right: 12px;
+    bottom: 84px;
+    left: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .validation-action-bar > span {
+    width: 100%;
+    margin-right: 0;
   }
   .page-title-row {
     align-items: flex-start;
