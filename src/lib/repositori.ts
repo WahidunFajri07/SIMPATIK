@@ -28,17 +28,27 @@ export async function ubahMaster(
     );
   throw new ApiError("Master tidak ditemukan.", 404);
 }
-export async function hapusMaster(id: string): Promise<void> {
+export async function hapusMasterBanyak(ids: string[]): Promise<void> {
   if (!pakaiPostgis) throw new ApiError("Hapus master butuh database.");
+  const unik = [...new Set(ids)];
+  if (!unik.length) throw new ApiError("Pilih minimal satu master.");
   await db().$transaction(async (tx) => {
-    if (!(await tx.gudangMaster.findUnique({ where: { id } })))
-      throw new ApiError("Master tidak ditemukan.", 404);
-    // Baris batch ikut dibuang: kalau tidak, impor ulang dengan batchId sama
-    // akan mencari master yang sudah tiada lalu gagal.
-    await tx.batchImpor.deleteMany({ where: { pemilik: id, jenis: "master" } });
+    const found = await tx.gudangMaster.findMany({
+      where: { id: { in: unik } },
+      select: { id: true },
+    });
+    if (found.length !== unik.length)
+      throw new ApiError("Salah satu master tidak ditemukan.", 404);
+    // Batch ikut dibuang agar batchId lama dapat dipakai ulang setelah penghapusan.
+    await tx.batchImpor.deleteMany({
+      where: { pemilik: { in: unik }, jenis: "master" },
+    });
     // Titik master ikut terhapus lewat onDelete: Cascade.
-    await tx.gudangMaster.delete({ where: { id } });
+    await tx.gudangMaster.deleteMany({ where: { id: { in: unik } } });
   });
+}
+export async function hapusMaster(id: string): Promise<void> {
+  return hapusMasterBanyak([id]);
 }
 export async function ubahSesi(id: string, nama: string): Promise<Sesi> {
   if (!pakaiPostgis) throw new ApiError("Ubah sesi butuh database.");
@@ -51,15 +61,26 @@ export async function ubahSesi(id: string, nama: string): Promise<Sesi> {
     );
   throw new ApiError("Sesi tidak ditemukan.", 404);
 }
-export async function hapusSesi(id: string): Promise<void> {
+export async function hapusSesiBanyak(ids: string[]): Promise<void> {
   if (!pakaiPostgis) throw new ApiError("Hapus sesi butuh database.");
+  const unik = [...new Set(ids)];
+  if (!unik.length) throw new ApiError("Pilih minimal satu sesi.");
   await db().$transaction(async (tx) => {
-    if (!(await tx.sesiPencocokan.findUnique({ where: { id } })))
-      throw new ApiError("Sesi tidak ditemukan.", 404);
-    await tx.batchImpor.deleteMany({ where: { pemilik: id, jenis: "sesi" } });
+    const found = await tx.sesiPencocokan.findMany({
+      where: { id: { in: unik } },
+      select: { id: true },
+    });
+    if (found.length !== unik.length)
+      throw new ApiError("Salah satu sesi tidak ditemukan.", 404);
+    await tx.batchImpor.deleteMany({
+      where: { pemilik: { in: unik }, jenis: "sesi" },
+    });
     // Hasil pencocokan ikut terhapus lewat onDelete: Cascade.
-    await tx.sesiPencocokan.delete({ where: { id } });
+    await tx.sesiPencocokan.deleteMany({ where: { id: { in: unik } } });
   });
+}
+export async function hapusSesi(id: string): Promise<void> {
+  return hapusSesiBanyak([id]);
 }
 export async function daftarSesi(): Promise<Sesi[]> {
   return pakaiPostgis

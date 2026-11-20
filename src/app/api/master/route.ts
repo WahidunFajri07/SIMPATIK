@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { endpoint, json, body, titikSchema, uuid } from "@/lib/api";
+import { ApiError, endpoint, json, body, titikSchema, uuid } from "@/lib/api";
 import {
   daftarMaster,
   imporMaster,
   ubahMaster,
-  hapusMaster,
+  hapusMasterBanyak,
 } from "@/lib/repositori";
 import { pakaiPostgis } from "@/lib/db";
 export const GET = endpoint(async () =>
@@ -42,7 +42,17 @@ export const PATCH = endpoint(async (req) => {
   return json(await ubahMaster(i.id, i));
 });
 export const DELETE = endpoint(async (req) => {
-  const id = uuid.parse(new URL(req.url).searchParams.get("id") ?? "");
-  await hapusMaster(id);
+  const queryId = new URL(req.url).searchParams.get("id");
+  const ids = queryId
+    ? [uuid.parse(queryId)]
+    : (await body(
+        req,
+        z.object({
+          ids: z.array(uuid).min(1).max(100),
+        }),
+      )).ids;
+  if (new Set(ids).size !== ids.length)
+    throw new ApiError("ID master tidak boleh duplikat.");
+  await hapusMasterBanyak(ids);
   return json({ ok: true });
 });

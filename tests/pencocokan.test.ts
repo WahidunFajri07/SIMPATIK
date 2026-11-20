@@ -126,6 +126,42 @@ test("nomor kesalahan mengikuti baris sumber setelah baris kosong dilewati", () 
   assert.equal(hasil.masalah[0].baris, 429);
   assert.match(hasil.errors[0], /^Baris 429:/);
 });
+
+test("data pembanding travo menolak latitude rusak dan menerima nilai yang diperbaiki", () => {
+  const bad = petakanBaris(
+    [
+      {
+        description: "53311 GD KLAG",
+        longitudex: 108.545097,
+        latitudey: -6697219,
+      },
+    ],
+    { deskripsi: "description", x: "longitudex", y: "latitudey" },
+    false,
+  );
+  assert.equal(bad.titik.length, 0);
+  assert.match(bad.errors[0], /Baris 2/);
+  const valid = petakanBaris(
+    [
+      {
+        description: "53311 GD KLAG",
+        longitudex: 108.545097,
+        latitudey: -6.697219,
+      },
+      { description: "", longitudex: 108.55, latitudey: -6.69 },
+    ],
+    { deskripsi: "description", x: "longitudex", y: "latitudey" },
+    false,
+  );
+  assert.equal(valid.errors.length, 0);
+  assert.deepEqual(
+    valid.titik.map(({ x, y }) => [x, y]),
+    [
+      [108.545097, -6.697219],
+      [108.55, -6.69],
+    ],
+  );
+});
 test("kode sama dari beberapa master memilih kode dengan jarak paling dekat", () => {
   const h = match({ deskripsi: "trf-001a", x: 107.600299, y: -6.9 }, "1", "s");
   assert.equal(h.masterId, "3");
