@@ -5,7 +5,7 @@ import { lokal } from "./penyimpanan";
 import { bersihkanKode } from "./bersihkan-data";
 import { buatPencocok } from "./rumus-jarak";
 import { ApiError } from "./api";
-import type { Hasil, Keputusan, Master, Sesi, Titik } from "./tipe";
+import type { Hasil, Keputusan, Master, Sesi, Status, Titik } from "./tipe";
 export async function daftarMaster(): Promise<Master[]> {
   return pakaiPostgis
     ? serial(await db().gudangMaster.findMany({ orderBy: { dibuat: "desc" } }))
@@ -508,7 +508,20 @@ export async function konfirmasi(input: Konfirmasi): Promise<Hasil> {
   });
 }
 export type Batas = { minX: number; minY: number; maxX: number; maxY: number };
-export async function titikPeta(b: Batas, sesiId?: string) {
+/** Anomali tampil lebih dulu agar tidak tertimbun titik AKURAT saat dipotong 8.000. */
+export const PRIORITAS_PETA: Status[] = [
+  "PERLU_KOREKSI_JARAK",
+  "KANDIDAT_LOKASI_TERDEKAT",
+  "TIDAK_DITEMUKAN",
+  "AKURAT",
+];
+export const posisiEfektif = (h: Hasil) => ({
+  x: h.hasilX ?? h.bx,
+  y: h.hasilY ?? h.by,
+});
+export const deskripsiEfektif = (h: Hasil) =>
+  h.hasilDeskripsi || h.deskripsiB || h.deskripsiA || "Tanpa deskripsi";
+export async function titikPeta(b: Batas, sesiId?: string, status?: Status) {
   const limit = 8000;
   if (!pakaiPostgis)
     return lokal((s) => {
@@ -528,19 +541,37 @@ export async function titikPeta(b: Batas, sesiId?: string) {
           deskripsi: p.deskripsi,
           jenis: "master",
           status: "MASTER",
+          keputusan: "BELUM_DITINJAU",
         }));
       const review = sesi
         ? s.hasil
-            .filter((p) => p.sesiId === sesiId && inside(p.bx, p.by))
+            .filter((p) => {
+              const e = posisiEfektif(p);
+              return (
+                p.sesiId === sesiId &&
+                (!status || p.status === status) &&
+                inside(e.x, e.y)
+              );
+            })
+            .sort(
+              (p, q) =>
+                PRIORITAS_PETA.indexOf(p.status) -
+                  PRIORITAS_PETA.indexOf(q.status) ||
+                Number(p.id) - Number(q.id),
+            )
             .slice(0, limit + 1)
-            .map((p) => ({
-              id: p.id,
-              x: p.bx,
-              y: p.by,
-              deskripsi: p.deskripsiB || p.deskripsiA || "Tanpa deskripsi",
-              jenis: "tinjauan",
-              status: p.status,
-            }))
+            .map((p) => {
+              const e = posisiEfektif(p);
+              return {
+                id: p.id,
+                x: e.x,
+                y: e.y,
+                deskripsi: deskripsiEfektif(p),
+                jenis: "tinjauan",
+                status: p.status,
+                keputusan: p.keputusan,
+              };
+            })
         : [];
       return {
         points: [...a.slice(0, limit), ...review.slice(0, limit)],
@@ -556,11 +587,31 @@ export async function titikPeta(b: Batas, sesiId?: string) {
     : Prisma.empty;
   const a = await db().$queryRaw<
     Array<Record<string, unknown>>
-  >`SELECT id::text,koordinat_x AS x,koordinat_y AS y,deskripsi_a_asli AS deskripsi,'master' AS jenis,'MASTER' AS status FROM titik_master WHERE geom && ${envelope} ${masterFilter} ORDER BY id LIMIT ${limit + 1}`;
+  >`SELECT id::text,koordinat_x AS x,koordinat_y AS y,deskripsi_a_asli AS deskripsi,'master' AS jenis,'MASTER' AS status,'BELUM_DITINJAU' AS keputusan FROM titik_master WHERE geom && ${envelope} ${masterFilter} ORDER BY id LIMIT ${limit + 1}`;
+  // Koordinat efektif = hasil koreksi bila sudah dikonfirmasi, jika tidak koordinat B.
+  // Anomali diurutkan lebih dulu supaya tidak terpotong limit 8.000.
+  const statusFilter = status
+    ? Prisma.sql`AND status_keterangan = ${status}::"Status"`
+    : Prisma.empty;
+  // Cabang pertama memakai index GIST pada geom; cabang kedua menangkap titik
+  // yang sudah dikoreksi keluar dari kotak aslinya.
+  const dalamKotak = Prisma.sql`(geom && ${envelope}
+      OR (COALESCE(hasil_x, koordinat_b_x) BETWEEN ${b.minX} AND ${b.maxX}
+        AND COALESCE(hasil_y, koordinat_b_y) BETWEEN ${b.minY} AND ${b.maxY}))`;
   const review = sesiId
-    ? await db().$queryRaw<
-        Array<Record<string, unknown>>
-      >`SELECT id::text,koordinat_b_x AS x,koordinat_b_y AS y,COALESCE(NULLIF(deskripsi_b,''),deskripsi_a,'Tanpa deskripsi') AS deskripsi,'tinjauan' AS jenis,status_keterangan AS status FROM hasil_pencocokan WHERE sesi_id = ${sesiId}::uuid AND geom && ${envelope} ORDER BY id LIMIT ${limit + 1}`
+    ? await db().$queryRaw<Array<Record<string, unknown>>>`
+        SELECT id::text,
+               COALESCE(hasil_x, koordinat_b_x) AS x,
+               COALESCE(hasil_y, koordinat_b_y) AS y,
+               COALESCE(NULLIF(hasil_deskripsi,''), NULLIF(deskripsi_b,''), deskripsi_a, 'Tanpa deskripsi') AS deskripsi,
+               'tinjauan' AS jenis,
+               status_keterangan AS status,
+               keputusan_konfirmasi AS keputusan
+        FROM hasil_pencocokan
+        WHERE sesi_id = ${sesiId}::uuid AND ${dalamKotak} ${statusFilter}
+        ORDER BY array_position(ARRAY['PERLU_KOREKSI_JARAK','KANDIDAT_LOKASI_TERDEKAT','TIDAK_DITEMUKAN','AKURAT']::"Status"[], status_keterangan),
+                 id
+        LIMIT ${limit + 1}`
     : [];
   return {
     points: [...a.slice(0, limit), ...review.slice(0, limit)],

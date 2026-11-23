@@ -112,6 +112,7 @@ export function LaciTabel({
   height,
   onHeight,
   loading,
+  onFilter,
 }: {
   hasil: Hasil[];
   sesi: Sesi | null;
@@ -120,12 +121,17 @@ export function LaciTabel({
   height: number;
   onHeight: (n: number) => void;
   loading: boolean;
+  onFilter?: (status: string) => void;
 }) {
   const [filter, setFilter] = useState("SEMUA"),
     [search, setSearch] = useState(""),
     [sorting, setSorting] = useState<SortingState>([]),
     [exportOpen, setExportOpen] = useState(false),
     [pending, setPending] = useState(false);
+  // Sinkronkan filter tabel ke layer peta agar keduanya menampilkan hal sama.
+  useEffect(() => {
+    onFilter?.(filter);
+  }, [filter, onFilter]);
   // Tinggi terakhir sebelum layar penuh, supaya tombol perkecil bisa kembali.
   const restore = useRef(45);
   useEffect(() => {
@@ -272,9 +278,12 @@ export function LaciTabel({
             {ringkas ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </button>
           <button
-            aria-label={layarPenuh ? "Kembalikan ukuran tabel" : "Perbesar tabel"}
+            aria-label={
+              layarPenuh ? "Kembalikan ukuran tabel" : "Perbesar tabel"
+            }
             onClick={() => {
-              if (layarPenuh) onHeight(restore.current < 70 ? 45 : restore.current);
+              if (layarPenuh)
+                onHeight(restore.current < 70 ? 45 : restore.current);
               else {
                 restore.current = height;
                 onHeight(85);
@@ -336,13 +345,25 @@ export function LaciTabel({
                 href={`/api/konfirmasi?sesiId=${sesi.id}&format=xlsx`}
                 onClick={() => setExportOpen(false)}
               >
-                Excel (.xlsx)
+                Excel (.xlsx) · 3 sheet
               </a>
               <a
                 href={`/api/konfirmasi?sesiId=${sesi.id}&format=csv`}
                 onClick={() => setExportOpen(false)}
               >
                 CSV (.csv)
+              </a>
+              <a
+                href={`/api/konfirmasi?sesiId=${sesi.id}&format=kml`}
+                onClick={() => setExportOpen(false)}
+              >
+                Google Earth (.kml)
+              </a>
+              <a
+                href={`/api/konfirmasi?sesiId=${sesi.id}&format=geojson`}
+                onClick={() => setExportOpen(false)}
+              >
+                QGIS / GeoJSON (.geojson)
               </a>
             </div>
           )}

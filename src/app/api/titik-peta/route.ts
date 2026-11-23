@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { endpoint, json, uuid, ApiError } from "@/lib/api";
 import { titikPeta } from "@/lib/repositori";
+import { STATUS } from "@/lib/tipe";
 export const GET = endpoint(async (req) => {
   const q = new URL(req.url).searchParams;
   const angka = (key: string, min: number, max: number) => {
@@ -18,5 +19,14 @@ export const GET = endpoint(async (req) => {
     throw new ApiError("Batas peta tidak valid.");
   const sesiId = q.get("sesiId");
   if (sesiId) uuid.parse(sesiId);
-  return json(await titikPeta(b, sesiId ?? undefined));
+  const status = q.get("status");
+  if (status && !STATUS.includes(status as (typeof STATUS)[number]))
+    throw new ApiError("Filter status peta tidak dikenal.");
+  return json(
+    await titikPeta(
+      b,
+      sesiId ?? undefined,
+      (status as (typeof STATUS)[number] | null) ?? undefined,
+    ),
+  );
 });

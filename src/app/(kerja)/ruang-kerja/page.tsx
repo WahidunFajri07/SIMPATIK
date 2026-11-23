@@ -38,6 +38,7 @@ export default function Page() {
     [loading, setLoading] = useState(true),
     [mode, setMode] = useState(""),
     [refresh, setRefresh] = useState(0),
+    [mapFilter, setMapFilter] = useState("SEMUA"),
     [toast, setToast] = useState("");
   const loadSession = useCallback(async (id: string, signal?: AbortSignal) => {
     setLoading(true);
@@ -143,6 +144,7 @@ export default function Page() {
         }}
         refresh={refresh}
         drawerHeight={height}
+        statusFilter={mapFilter}
       />
       <header className="workspace-header">
         <div className="workspace-brand">
@@ -237,6 +239,7 @@ export default function Page() {
         height={height}
         onHeight={setHeight}
         loading={loading}
+        onFilter={setMapFilter}
       />
       <PetakanKolom
         open={upload}

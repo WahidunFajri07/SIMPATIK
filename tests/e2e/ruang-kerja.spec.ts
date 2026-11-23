@@ -73,10 +73,34 @@ test("fase 4–5: pencocokan, peta, konfirmasi, ekspor dan riwayat", async ({
   const r = await page.request.get(`/api/konfirmasi?sesiId=${id}&format=xlsx`);
   expect(r.ok()).toBeTruthy();
   const wb = XLSX.read(await r.body(), { type: "buffer" });
+  expect(wb.SheetNames).toEqual([
+    "Ringkasan Audit",
+    "Audit Trail Transparansi",
+    "Data Final Siap Pakai",
+  ]);
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    wb.Sheets[wb.SheetNames[0]],
+    wb.Sheets["Audit Trail Transparansi"],
   );
   expect(rows).toHaveLength(100);
+  const finalRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.Sheets["Data Final Siap Pakai"],
+  );
+  expect(finalRows).toHaveLength(100);
+  expect(Object.keys(finalRows[0])).toEqual([
+    "Deskripsi Final",
+    "Koordinat X Final",
+    "Koordinat Y Final",
+    "Status Akhir",
+  ]);
+  const ringkasan = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.Sheets["Ringkasan Audit"],
+  );
+  expect(ringkasan.find((r) => r.Keterangan === "Nama Sesi")?.Nilai).toBe(
+    "Audit E2E Campuran",
+  );
+  expect(
+    ringkasan.some((r) => String(r.Keterangan).startsWith("Akurat")),
+  ).toBeTruthy();
   expect(
     rows.some(
       (r) =>
@@ -89,6 +113,24 @@ test("fase 4–5: pencocokan, peta, konfirmasi, ekspor dan riwayat", async ({
   ).toBeTruthy();
   const csv = await page.request.get(`/api/konfirmasi?sesiId=${id}&format=csv`);
   expect(await csv.text()).toContain("Koordinat Hasil X");
+  const kml = await page.request.get(`/api/konfirmasi?sesiId=${id}&format=kml`);
+  expect(kml.ok()).toBeTruthy();
+  const kmlText = await kml.text();
+  expect(kmlText).toContain("<Placemark>");
+  expect(kmlText).toContain("<coordinates>");
+  const gj = await page.request.get(
+    `/api/konfirmasi?sesiId=${id}&format=geojson`,
+  );
+  expect(gj.ok()).toBeTruthy();
+  const fc = await gj.json();
+  expect(fc.type).toBe("FeatureCollection");
+  expect(fc.features).toHaveLength(100);
+  expect(fc.features[0].geometry.type).toBe("Point");
+  expect(
+    (
+      await page.request.get(`/api/konfirmasi?sesiId=${id}&format=shp`)
+    ).status(),
+  ).toBe(400);
   await page.goto("/riwayat");
   await expect(
     page.getByRole("heading", { name: "Audit E2E Campuran" }).first(),

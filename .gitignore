@@ -11,3 +11,6 @@ test-results/
 playwright-report/
 tsconfig.tsbuildinfo
 *.log
+.superpowers
+.remember
+.claude

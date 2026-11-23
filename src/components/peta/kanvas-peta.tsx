@@ -21,6 +21,7 @@ type Point = {
   deskripsi: string;
   jenis: string;
   status: string;
+  keputusan?: string;
 };
 const colors: Record<string, [number, number, number, number]> = {
   MASTER: [12, 132, 118, 220],
@@ -29,6 +30,10 @@ const colors: Record<string, [number, number, number, number]> = {
   KANDIDAT_LOKASI_TERDEKAT: [92, 142, 188, 235],
   TIDAK_DITEMUKAN: [157, 163, 171, 230],
 };
+/** Titik yang sudah diputuskan berubah hijau agar terlihat selesai di peta. */
+const TERKONFIRMASI: [number, number, number, number] = [22, 163, 74, 255];
+const sudahDitinjau = (p: Point) =>
+  p.jenis === "tinjauan" && !!p.keputusan && p.keputusan !== "BELUM_DITINJAU";
 const jalanTiles =
   process.env.NEXT_PUBLIC_MAP_TILE_URL ||
   "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -38,12 +43,14 @@ export function KanvasPeta({
   onSelect,
   refresh,
   drawerHeight,
+  statusFilter,
 }: {
   sesiId?: string;
   selected: Hasil | null;
   onSelect: (id: string) => void;
   refresh: number;
   drawerHeight: number;
+  statusFilter?: string;
 }) {
   const container = useRef<HTMLDivElement>(null),
     map = useRef<Peta | null>(null),
@@ -145,6 +152,8 @@ export function KanvasPeta({
         zoom: String(m.getZoom()),
       });
       if (sesiId) q.set("sesiId", sesiId);
+      if (statusFilter && statusFilter !== "SEMUA")
+        q.set("status", statusFilter);
       try {
         const r = await fetch("/api/titik-peta?" + q, {
           signal: controller.signal,
@@ -177,7 +186,7 @@ export function KanvasPeta({
       controller?.abort();
       m.off("moveend", update);
     };
-  }, [ready, sesiId, refresh]);
+  }, [ready, sesiId, refresh, statusFilter]);
   useEffect(() => {
     const o = overlay.current;
     if (!o) return;
@@ -186,7 +195,10 @@ export function KanvasPeta({
         id: "titik-koordinat",
         data: points,
         getPosition: (p) => [p.x, p.y],
-        getFillColor: (p) => colors[p.status] ?? colors.MASTER,
+        getFillColor: (p) =>
+          sudahDitinjau(p)
+            ? TERKONFIRMASI
+            : (colors[p.status] ?? colors.MASTER),
         getRadius: (p) => (p.jenis === "master" ? 5 : 3),
         radiusUnits: "pixels",
         radiusMinPixels: 3,
@@ -201,8 +213,13 @@ export function KanvasPeta({
       }),
     ];
     if (selected) {
+      // Posisi efektif: hasil koreksi bila sudah dikonfirmasi.
+      const tx = selected.hasilX ?? selected.bx,
+        ty = selected.hasilY ?? selected.by;
+      const terkoreksi =
+        tx !== selected.bx || ty !== selected.by ? true : false;
       const endpoints = [
-        { x: selected.bx, y: selected.by, label: "B · Tinjauan" },
+        { x: tx, y: ty, label: terkoreksi ? "B · Terkoreksi" : "B · Tinjauan" },
         ...(selected.ax !== null && selected.ay !== null
           ? [{ x: selected.ax, y: selected.ay, label: "A · Master" }]
           : []),
@@ -221,13 +238,18 @@ export function KanvasPeta({
           lineWidthUnits: "pixels",
         }),
       );
-      if (selected.ax !== null && selected.ay !== null)
+      // Garis anomali disembunyikan setelah titik diputuskan.
+      if (
+        selected.ax !== null &&
+        selected.ay !== null &&
+        selected.keputusan === "BELUM_DITINJAU"
+      )
         layers.push(
           new ArcLayer<Hasil>({
             id: "garis-jarak",
             data: [selected],
             getSourcePosition: (p) => [p.ax!, p.ay!],
-            getTargetPosition: (p) => [p.bx, p.by],
+            getTargetPosition: (p) => [p.hasilX ?? p.bx, p.hasilY ?? p.by],
             getSourceColor: [10, 142, 124],
             getTargetColor: [228, 159, 75],
             getWidth: 3,
@@ -240,8 +262,8 @@ export function KanvasPeta({
         ...(selected.ax !== null && selected.ay !== null
           ? [
               {
-                x: (selected.ax + selected.bx) / 2,
-                y: (selected.ay + selected.by) / 2,
+                x: (selected.ax + tx) / 2,
+                y: (selected.ay + ty) / 2,
                 label: `${meter(selected.jarak)} m`,
               },
             ]
@@ -283,6 +305,8 @@ export function KanvasPeta({
   useEffect(() => {
     if (!selected || !map.current || !ready) return;
     const m = map.current,
+      tx = selected.hasilX ?? selected.bx,
+      ty = selected.hasilY ?? selected.by,
       padding = {
         top: 130,
         bottom: Math.min(
@@ -300,20 +324,14 @@ export function KanvasPeta({
     )
       m.fitBounds(
         [
-          [
-            Math.min(selected.ax, selected.bx),
-            Math.min(selected.ay, selected.by),
-          ],
-          [
-            Math.max(selected.ax, selected.bx),
-            Math.max(selected.ay, selected.by),
-          ],
+          [Math.min(selected.ax, tx), Math.min(selected.ay, ty)],
+          [Math.max(selected.ax, tx), Math.max(selected.ay, ty)],
         ],
         { padding, maxZoom: 18, duration: 1400 },
       );
     else
       m.flyTo({
-        center: [selected.bx, selected.by],
+        center: [tx, ty],
         zoom: 17,
         padding,
         duration: 1400,
@@ -362,6 +380,9 @@ export function KanvasPeta({
           </span>
           <span>
             <i style={{ background: "#dba052" }} /> Tinjauan B
+          </span>
+          <span>
+            <i style={{ background: "#16a34a" }} /> Sudah dikonfirmasi
           </span>
           <span className="legend-count">
             {points.length} titik dalam tampilan
