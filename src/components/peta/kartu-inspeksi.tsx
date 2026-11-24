@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   X,
   ArrowDown,
@@ -15,6 +15,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import { StatusBadge } from "../tabel/laci-tabel";
 import { Button } from "../ui/button";
+import { useKlikDiLuar } from "@/lib/use-klik-luar";
 import { api, kirim, meter } from "@/lib/klien";
 import { LABEL_KEPUTUSAN, type Hasil, type Keputusan } from "@/lib/tipe";
 export function KartuInspeksi({
@@ -35,6 +36,11 @@ export function KartuInspeksi({
     [y, setY] = useState(""),
     [catatan, setCatatan] = useState(""),
     [savingNote, setSavingNote] = useState(false);
+  const tutupKartu = useCallback(() => {
+    setDetail(false);
+    onClose();
+  }, [onClose]);
+  const kartuRef = useKlikDiLuar<HTMLDivElement>(true, tutupKartu);
   useEffect(() => {
     setDetail(false);
     setCustom(false);
@@ -96,6 +102,7 @@ export function KartuInspeksi({
     <>
       {detail && <div className="inspection-backdrop" aria-hidden="true" />}
       <motion.aside
+        ref={kartuRef}
         className={`inspection-card ${detail ? "inspection-card-detail" : ""}`}
         initial={{ opacity: 0, x: 15 }}
         animate={{

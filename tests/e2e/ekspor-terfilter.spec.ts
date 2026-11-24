@@ -99,14 +99,11 @@ test("menu export ruang kerja membawa status filter aktif", async ({
   const filter = page.locator('select[aria-label="Filter status"]');
   await filter.selectOption("AKURAT");
   await page.getByRole("button", { name: /Ekspor hasil/ }).click();
-  await expect(
-    page.getByRole("link", { name: /Export Sesuai Filter \(Akurat\)/ }).first(),
-  ).toBeVisible();
-  const filteredLink = page
-    .getByRole("link", { name: /Export Sesuai Filter/ })
-    .first();
+  const menu = page.locator(".export-menu");
+  await menu.getByLabel("Status ekspor").selectOption("AKURAT");
+  const filteredLink = menu.getByRole("link", { name: /Unduh/ });
+  await expect(filteredLink).toBeVisible();
   expect(await filteredLink.getAttribute("href")).toContain("status=AKURAT");
-  await expect(
-    page.getByRole("link", { name: /Export Semua Status/ }).first(),
-  ).toBeVisible();
+  await menu.getByLabel("Status ekspor").selectOption("SEMUA");
+  expect(await filteredLink.getAttribute("href")).not.toContain("status=");
 });

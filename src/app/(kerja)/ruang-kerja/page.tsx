@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { useKlikDiLuar } from "@/lib/use-klik-luar";
 import { LaciTabel } from "@/components/tabel/laci-tabel";
 import { KartuInspeksi } from "@/components/peta/kartu-inspeksi";
 import { PetakanKolom } from "@/components/modal/petakan-kolom";
@@ -40,6 +41,7 @@ export default function Page() {
     [refresh, setRefresh] = useState(0),
     [mapFilter, setMapFilter] = useState("SEMUA"),
     [toast, setToast] = useState("");
+  const menuRef = useKlikDiLuar<HTMLDivElement>(menu, () => setMenu(false));
   const loadSession = useCallback(async (id: string, signal?: AbortSignal) => {
     setLoading(true);
     setSelected(null);
@@ -171,7 +173,7 @@ export default function Page() {
         </div>
       </header>
       <div className="session-toolbar">
-        <div className="session-switch">
+        <div className="session-switch" ref={menuRef}>
           <button onClick={() => setMenu(!menu)} aria-expanded={menu}>
             <FolderClock size={17} />
             <span>

@@ -38,9 +38,6 @@ test("catatan manual tersedia di kartu inspeksi dan tabel", async ({
   await expect(autoFill).not.toBeChecked();
   await autoFill.check();
   expect(
-    await page
-      .getByRole("link", { name: /Export Sesuai Filter/ })
-      .first()
-      .getAttribute("href"),
+    await page.getByRole("link", { name: /Unduh Excel/ }).getAttribute("href"),
   ).toContain("isiKeteranganOtomatis=true");
 });

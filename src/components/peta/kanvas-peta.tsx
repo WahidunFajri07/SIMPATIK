@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useKlikDiLuar } from "@/lib/use-klik-luar";
 import { motion, useReducedMotion } from "framer-motion";
 import maplibregl, { type Map as Peta } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -68,6 +69,9 @@ export function KanvasPeta({
     [legendOpen, setLegendOpen] = useState(false),
     [cursor, setCursor] = useState<{ x: number; y: number } | null>(null),
     [position, setPosition] = useState({ x: 107.607, y: -6.91 });
+  const legendRef = useKlikDiLuar<HTMLDivElement>(legendOpen, () =>
+    setLegendOpen(false),
+  );
   select.current = onSelect;
   useEffect(() => {
     if (!container.current) return;
@@ -389,7 +393,7 @@ export function KanvasPeta({
             {cursor ? cursor.x.toFixed(4) : position.x.toFixed(4)}°
           </span>
         </div>
-        <div className="map-legend">
+        <div className="map-legend" ref={legendRef}>
           <button
             className="legend-pill"
             onClick={() => setLegendOpen(!legendOpen)}

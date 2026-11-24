@@ -19,7 +19,8 @@ import {
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { api, jumlah } from "@/lib/klien";
-import { LABEL_STATUS, STATUS } from "@/lib/tipe";
+import { useKlikDiLuar } from "@/lib/use-klik-luar";
+import { LABEL_STATUS } from "@/lib/tipe";
 import type { Sesi } from "@/lib/tipe";
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -40,8 +41,14 @@ export default function Page() {
     [hapusBanyak, setHapusBanyak] = useState(false),
     [selected, setSelected] = useState<string[]>([]),
     [quickExport, setQuickExport] = useState<string | null>(null),
+    [exportFormat, setExportFormat] = useState("xlsx"),
+    [exportStatus, setExportStatus] = useState("SEMUA"),
     [autoFill, setAutoFill] = useState(false),
     [toast, setToast] = useState("");
+  const quickExportRef = useKlikDiLuar<HTMLDivElement>(
+    quickExport !== null,
+    () => setQuickExport(null),
+  );
   async function load() {
     try {
       const [s, m] = await Promise.all([
@@ -195,65 +202,99 @@ export default function Page() {
                   </p>
                   <small>{s.dikonfirmasi} keputusan tersimpan</small>
                 </div>
-                <div className="row-actions">
-                  <button
-                    className="icon-btn"
-                    onClick={() => setUbah(s)}
-                    aria-label={`Ubah nama ${s.nama}`}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    className="icon-btn danger"
-                    onClick={() => setHapus(s)}
-                    aria-label={`Hapus ${s.nama}`}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                  <button
-                    className="quick-export-btn"
-                    onClick={() =>
-                      setQuickExport(quickExport === s.id ? null : s.id)
-                    }
-                    aria-label={`Export Cepat ${s.nama}`}
-                  >
-                    <ArrowDownToLine size={15} /> Export Cepat
-                  </button>
-                </div>
-                {quickExport === s.id && (
-                  <div
-                    className="quick-export-menu"
-                    aria-label={`Export Cepat ${s.nama}`}
-                  >
-                    <label className="export-auto-fill">
-                      <input
-                        type="checkbox"
-                        checked={autoFill}
-                        onChange={(e) => setAutoFill(e.target.checked)}
-                      />
-                      Isi Keterangan kosong dengan Status Sistem
-                    </label>
-                    {Object.entries(FORMAT_LABEL).map(([format, label]) => (
-                      <div key={format}>
-                        <a
-                          href={`/api/konfirmasi?${new URLSearchParams({ sesiId: s.id, format, ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}) })}`}
-                          onClick={() => setQuickExport(null)}
-                        >
-                          {label} · Semua
-                        </a>
-                        {STATUS.map((status) => (
-                          <a
-                            key={`${format}-${status}`}
-                            href={`/api/konfirmasi?${new URLSearchParams({ sesiId: s.id, format, status, ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}) })}`}
-                            onClick={() => setQuickExport(null)}
-                          >
-                            {label} · {LABEL_STATUS[status]}
-                          </a>
-                        ))}
-                      </div>
-                    ))}
+                <div
+                  className="history-export-wrap"
+                  ref={quickExport === s.id ? quickExportRef : undefined}
+                >
+                  <div className="row-actions">
+                    <button
+                      className="icon-btn"
+                      onClick={() => setUbah(s)}
+                      aria-label={`Ubah nama ${s.nama}`}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      className="icon-btn danger"
+                      onClick={() => setHapus(s)}
+                      aria-label={`Hapus ${s.nama}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    <button
+                      className="quick-export-btn"
+                      onClick={() =>
+                        setQuickExport(quickExport === s.id ? null : s.id)
+                      }
+                      aria-label={`Export Cepat ${s.nama}`}
+                    >
+                      <ArrowDownToLine size={15} /> Export Cepat
+                    </button>
                   </div>
-                )}
+                  {quickExport === s.id && (
+                    <div
+                      className="quick-export-menu"
+                      aria-label={`Export Cepat ${s.nama}`}
+                    >
+                      <label className="export-auto-fill">
+                        <input
+                          type="checkbox"
+                          checked={autoFill}
+                          onChange={(e) => setAutoFill(e.target.checked)}
+                        />
+                        Isi Keterangan kosong dengan Status Sistem
+                      </label>
+                      <label className="export-field">
+                        Format
+                        <select
+                          aria-label="Format ekspor"
+                          value={exportFormat}
+                          onChange={(e) => setExportFormat(e.target.value)}
+                        >
+                          {Object.entries(FORMAT_LABEL).map(([format, label]) => (
+                            <option key={format} value={format}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="export-field">
+                        Status
+                        <select
+                          aria-label="Status ekspor"
+                          value={exportStatus}
+                          onChange={(e) => setExportStatus(e.target.value)}
+                        >
+                          <option value="SEMUA">Semua status</option>
+                          {Object.entries(LABEL_STATUS).map(([status, label]) => (
+                            <option key={status} value={status}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <a
+                        className="export-download"
+                        href={`/api/konfirmasi?${new URLSearchParams({
+                          sesiId: s.id,
+                          format: exportFormat,
+                          ...(exportStatus !== "SEMUA"
+                            ? { status: exportStatus }
+                            : {}),
+                          ...(autoFill
+                            ? { isiKeteranganOtomatis: "true" }
+                            : {}),
+                        })}`}
+                        onClick={() => setQuickExport(null)}
+                      >
+                        Unduh {FORMAT_LABEL[exportFormat]} —{" "}
+                        {exportStatus === "SEMUA"
+                          ? "Semua status"
+                          : LABEL_STATUS[exportStatus as keyof typeof LABEL_STATUS]}
+                      </a>
+                    </div>
+                  )}
+                </div>
                 <Link
                   href={`/ruang-kerja?sesi=${s.id}`}
                   className="history-open"

@@ -29,6 +29,7 @@ import {
   type Sesi,
 } from "@/lib/tipe";
 import { api, jumlah, meter } from "@/lib/klien";
+import { useKlikDiLuar } from "@/lib/use-klik-luar";
 import { Button } from "../ui/button";
 function InlineNote({ hasil }: { hasil: Hasil }) {
   const [editing, setEditing] = useState(false);
@@ -97,9 +98,14 @@ const columns = [
     },
   ),
   col.accessor("status", {
-    header: "Keterangan status",
+    header: "Status",
     size: 190,
     cell: (i) => <StatusBadge status={i.getValue()} />,
+  }),
+  col.accessor("catatanManual", {
+    header: "Keterangan",
+    size: 190,
+    cell: (i) => <InlineNote hasil={i.row.original} />,
   }),
   col.accessor("jarak", {
     header: "Jarak (m)",
@@ -111,11 +117,6 @@ const columns = [
         {meter(i.getValue())}
       </span>
     ),
-  }),
-  col.accessor("catatanManual", {
-    header: "Keterangan",
-    size: 190,
-    cell: (i) => <InlineNote hasil={i.row.original} />,
   }),
   col.accessor("deskripsiB", {
     header: "Deskripsi B",
@@ -169,8 +170,13 @@ export function LaciTabel({
     [search, setSearch] = useState(""),
     [sorting, setSorting] = useState<SortingState>([]),
     [exportOpen, setExportOpen] = useState(false),
+    [exportFormat, setExportFormat] = useState("xlsx"),
+    [exportStatus, setExportStatus] = useState("SEMUA"),
     [autoFill, setAutoFill] = useState(false),
     [pending, setPending] = useState(false);
+  const exportWrap = useKlikDiLuar<HTMLDivElement>(exportOpen, () =>
+    setExportOpen(false),
+  );
   // Sinkronkan filter tabel ke layer peta agar keduanya menampilkan hal sama.
   useEffect(() => {
     onFilter?.(filter);
@@ -373,11 +379,14 @@ export function LaciTabel({
           />{" "}
           Belum ditinjau
         </label>
-        <div className="export-wrap">
+        <div className="export-wrap" ref={exportWrap}>
           <Button
             variant="secondary"
             disabled={!sesi || loading}
-            onClick={() => setExportOpen(!exportOpen)}
+            onClick={() => {
+              if (!exportOpen) setExportStatus(filter);
+              setExportOpen(!exportOpen);
+            }}
           >
             <ArrowDownToLine size={14} /> Ekspor hasil <ChevronDown size={12} />
           </Button>
@@ -391,49 +400,49 @@ export function LaciTabel({
                 />
                 Isi Keterangan kosong dengan Status Sistem
               </label>
-              {(["xlsx", "csv", "kml", "geojson"] as const).map((format) => {
-                const params = new URLSearchParams({
+              <label className="export-field">
+                Format
+                <select
+                  aria-label="Format ekspor"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                >
+                  <option value="xlsx">Excel (.xlsx) · 3 sheet</option>
+                  <option value="csv">CSV (.csv)</option>
+                  <option value="kml">Google Earth (.kml)</option>
+                  <option value="geojson">QGIS / GeoJSON (.geojson)</option>
+                </select>
+              </label>
+              <label className="export-field">
+                Status
+                <select
+                  aria-label="Status ekspor"
+                  value={exportStatus}
+                  onChange={(e) => setExportStatus(e.target.value)}
+                >
+                  <option value="SEMUA">Semua status</option>
+                  {Object.entries(LABEL_STATUS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <a
+                className="export-download"
+                href={`/api/konfirmasi?${new URLSearchParams({
                   sesiId: sesi.id,
-                  format,
-                  ...(filter !== "SEMUA" ? { status: filter } : {}),
+                  format: exportFormat,
+                  ...(exportStatus !== "SEMUA" ? { status: exportStatus } : {}),
                   ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}),
-                });
-                const semua = new URLSearchParams({
-                  sesiId: sesi.id,
-                  format,
-                  ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}),
-                });
-                const label =
-                  format === "xlsx"
-                    ? "Excel (.xlsx) · 3 sheet"
-                    : format === "kml"
-                      ? "Google Earth (.kml)"
-                      : format === "geojson"
-                        ? "QGIS / GeoJSON (.geojson)"
-                        : "CSV (.csv)";
-                return (
-                  <div key={format} className="export-option-group">
-                    <a
-                      href={`/api/konfirmasi?${params}`}
-                      onClick={() => setExportOpen(false)}
-                    >
-                      Export Sesuai Filter (
-                      {filter === "SEMUA"
-                        ? "Semua Status"
-                        : LABEL_STATUS[filter as Hasil["status"]]}
-                      ) · {label}
-                    </a>
-                    {filter !== "SEMUA" && (
-                      <a
-                        href={`/api/konfirmasi?${semua}`}
-                        onClick={() => setExportOpen(false)}
-                      >
-                        Export Semua Status · {label}
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
+                })}`}
+                onClick={() => setExportOpen(false)}
+              >
+                Unduh {exportFormat === "xlsx" ? "Excel" : exportFormat.toUpperCase()} —{" "}
+                {exportStatus === "SEMUA"
+                  ? "Semua status"
+                  : LABEL_STATUS[exportStatus as Hasil["status"]]}
+              </a>
             </div>
           )}
         </div>

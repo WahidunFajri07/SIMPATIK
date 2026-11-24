@@ -65,6 +65,13 @@ test("detail inspeksi menutup sebagian kecil dengan backdrop blur", async ({
     .click();
   await expect(page.locator(".inspection-backdrop")).toHaveCount(0);
   await expect(page.locator(".inspection-card-detail")).toHaveCount(0);
+
+  await page.locator(".data-row").first().click();
+  await bukaDetail(page);
+  await page.locator(".inspection-card-detail").getByRole("heading").click();
+  await expect(page.locator(".inspection-card-detail")).toBeVisible();
+  await page.locator(".inspection-backdrop").click({ position: { x: 5, y: 5 } });
+  await expect(page.locator(".inspection-card-detail")).toHaveCount(0);
 });
 
 test("detail inspeksi tetap layak di layar kecil", async ({ page }) => {

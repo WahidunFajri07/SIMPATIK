@@ -65,6 +65,10 @@ test("kanvas peta memiliki HUD cursor dan legenda ringkas", async ({
     "Sudah dikonfirmasi",
   );
 
+  await expect(page.locator(".map-legend-details")).toBeVisible();
+  await peta.click({ position: { x: 10, y: 10 } });
+  await expect(page.locator(".map-legend-details")).toHaveCount(0);
+
   await page.getByRole("button", { name: "Ubah peta dasar" }).click();
   await expect(peta).toHaveAttribute("data-map-mode", "satellite");
   await expect(page.locator(".map-readouts")).toHaveClass(/map-satellite/);
