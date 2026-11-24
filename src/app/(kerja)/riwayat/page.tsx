@@ -19,7 +19,16 @@ import {
 import { KepalaHalaman } from "@/components/kepala-halaman";
 import { LatarInteraktif } from "@/components/animasi/latar-interaktif";
 import { api, jumlah } from "@/lib/klien";
+import { LABEL_STATUS, STATUS } from "@/lib/tipe";
 import type { Sesi } from "@/lib/tipe";
+
+const FORMAT_LABEL: Record<string, string> = {
+  xlsx: "Excel 3-Sheet",
+  csv: "CSV",
+  kml: "KML",
+  geojson: "GeoJSON",
+};
+
 export default function Page() {
   const [sessions, setSessions] = useState<Sesi[]>([]),
     [search, setSearch] = useState(""),
@@ -30,6 +39,8 @@ export default function Page() {
     [hapus, setHapus] = useState<Sesi | null>(null),
     [hapusBanyak, setHapusBanyak] = useState(false),
     [selected, setSelected] = useState<string[]>([]),
+    [quickExport, setQuickExport] = useState<string | null>(null),
+    [autoFill, setAutoFill] = useState(false),
     [toast, setToast] = useState("");
   async function load() {
     try {
@@ -108,13 +119,13 @@ export default function Page() {
             Pilih semua
           </label>
           <div className="search-field history-search">
-          <Search size={15} />
-          <input
-            aria-label="Cari riwayat sesi"
-            placeholder="Cari nama sesi…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+            <Search size={15} />
+            <input
+              aria-label="Cari riwayat sesi"
+              placeholder="Cari nama sesi…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
         {error && (
@@ -136,85 +147,121 @@ export default function Page() {
                 className="history-row"
               >
                 <label className="history-select">
-                    <input
-                      type="checkbox"
-                      aria-label={`Pilih ${s.nama}`}
-                      checked={selected.includes(s.id)}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setSelected((current) =>
-                          e.target.checked
-                            ? [...current, s.id]
-                            : current.filter((id) => id !== s.id),
-                        );
-                      }}
-                    />
+                  <input
+                    type="checkbox"
+                    aria-label={`Pilih ${s.nama}`}
+                    checked={selected.includes(s.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setSelected((current) =>
+                        e.target.checked
+                          ? [...current, s.id]
+                          : current.filter((id) => id !== s.id),
+                      );
+                    }}
+                  />
                 </label>
                 <span className="history-index">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div className="history-title">
-                    <span>
-                      {new Date(s.dibuat).toLocaleString("id-ID", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: "Asia/Jakarta",
-                      })}{" "}
-                      WIB
-                    </span>
-                    <Link href={`/ruang-kerja?sesi=${s.id}`}>
-                      <h2>{s.nama}</h2>
-                    </Link>
-                    <p>
-                      {s.masterIds.length} sumber master <i /> Toleransi{" "}
-                      {s.toleransi} m <i /> {jumlah(s.total)} titik
-                    </p>
-                  </div>
-                  <div className="history-progress">
-                    <div>
-                      <span
-                        style={{
-                          width: `${s.total ? (s.akurat / s.total) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <p>
-                      <span>{s.akurat} akurat</span>
-                      <span>{s.tinjau} perlu ditinjau</span>
-                    </p>
-                    <small>{s.dikonfirmasi} keputusan tersimpan</small>
-                  </div>
-                  <div className="row-actions">
-                    <button
-                      className="icon-btn"
-                      onClick={() => setUbah(s)}
-                      aria-label={`Ubah nama ${s.nama}`}
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      className="icon-btn danger"
-                      onClick={() => setHapus(s)}
-                      aria-label={`Hapus ${s.nama}`}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <a
-                    href={`/api/konfirmasi?sesiId=${s.id}&format=xlsx`}
-                    className="icon-btn"
-                    aria-label={`Ekspor ${s.nama}`}
-                  >
-                    <ArrowDownToLine size={16} />
-                  </a>
-                  <Link
-                    href={`/ruang-kerja?sesi=${s.id}`}
-                    className="history-open"
-                  >
-                    Lanjutkan <ArrowUpRight size={15} />
+                  <span>
+                    {new Date(s.dibuat).toLocaleString("id-ID", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "Asia/Jakarta",
+                    })}{" "}
+                    WIB
+                  </span>
+                  <Link href={`/ruang-kerja?sesi=${s.id}`}>
+                    <h2>{s.nama}</h2>
                   </Link>
-                </motion.article>
-              ))}
+                  <p>
+                    {s.masterIds.length} sumber master <i /> Toleransi{" "}
+                    {s.toleransi} m <i /> {jumlah(s.total)} titik
+                  </p>
+                </div>
+                <div className="history-progress">
+                  <div>
+                    <span
+                      style={{
+                        width: `${s.total ? (s.akurat / s.total) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <p>
+                    <span>{s.akurat} akurat</span>
+                    <span>{s.tinjau} perlu ditinjau</span>
+                  </p>
+                  <small>{s.dikonfirmasi} keputusan tersimpan</small>
+                </div>
+                <div className="row-actions">
+                  <button
+                    className="icon-btn"
+                    onClick={() => setUbah(s)}
+                    aria-label={`Ubah nama ${s.nama}`}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    className="icon-btn danger"
+                    onClick={() => setHapus(s)}
+                    aria-label={`Hapus ${s.nama}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                  <button
+                    className="quick-export-btn"
+                    onClick={() =>
+                      setQuickExport(quickExport === s.id ? null : s.id)
+                    }
+                    aria-label={`Export Cepat ${s.nama}`}
+                  >
+                    <ArrowDownToLine size={15} /> Export Cepat
+                  </button>
+                </div>
+                {quickExport === s.id && (
+                  <div
+                    className="quick-export-menu"
+                    aria-label={`Export Cepat ${s.nama}`}
+                  >
+                    <label className="export-auto-fill">
+                      <input
+                        type="checkbox"
+                        checked={autoFill}
+                        onChange={(e) => setAutoFill(e.target.checked)}
+                      />
+                      Isi Keterangan kosong dengan Status Sistem
+                    </label>
+                    {Object.entries(FORMAT_LABEL).map(([format, label]) => (
+                      <div key={format}>
+                        <a
+                          href={`/api/konfirmasi?${new URLSearchParams({ sesiId: s.id, format, ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}) })}`}
+                          onClick={() => setQuickExport(null)}
+                        >
+                          {label} · Semua
+                        </a>
+                        {STATUS.map((status) => (
+                          <a
+                            key={`${format}-${status}`}
+                            href={`/api/konfirmasi?${new URLSearchParams({ sesiId: s.id, format, status, ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}) })}`}
+                            onClick={() => setQuickExport(null)}
+                          >
+                            {label} · {LABEL_STATUS[status]}
+                          </a>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Link
+                  href={`/ruang-kerja?sesi=${s.id}`}
+                  className="history-open"
+                >
+                  Lanjutkan <ArrowUpRight size={15} />
+                </Link>
+              </motion.article>
+            ))}
           </AnimatePresence>
         </div>
         {!sessions.length && !error && (
@@ -231,7 +278,10 @@ export default function Page() {
             <b>{selected.length}</b> sesi dipilih
           </span>
           <button onClick={() => setSelected([])}>Batalkan</button>
-          <button className="btn btn-danger" onClick={() => setHapusBanyak(true)}>
+          <button
+            className="btn btn-danger"
+            onClick={() => setHapusBanyak(true)}
+          >
             <Trash2 size={14} /> Hapus terpilih
           </button>
         </div>

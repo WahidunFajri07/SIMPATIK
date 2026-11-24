@@ -8,6 +8,7 @@ import {
   bacaHasil,
   daftarSesi,
   daftarMaster,
+  ubahCatatanManual,
 } from "@/lib/repositori";
 import { KEPUTUSAN, STATUS, LABEL_STATUS } from "@/lib/tipe";
 export const POST = endpoint(async (req) => {
@@ -20,6 +21,7 @@ export const POST = endpoint(async (req) => {
         keputusan: z.enum(KEPUTUSAN).exclude(["BELUM_DITINJAU"]),
         x: z.number().finite().min(-180).max(180).optional(),
         y: z.number().finite().min(-90).max(90).optional(),
+        catatanManual: z.string().max(2000).nullable().optional(),
       }),
       z.object({
         ids: z.array(z.string().regex(/^\d+$/)).min(1).max(500),
@@ -32,6 +34,17 @@ export const POST = endpoint(async (req) => {
   );
   if ("ids" in input) return json(await konfirmasiBanyak(input));
   return json(await konfirmasi(input));
+});
+export const PATCH = endpoint(async (req) => {
+  const input = await body(
+    req,
+    z.object({
+      id: z.string().regex(/^\d+$/),
+      sesiId: uuid,
+      catatanManual: z.string().max(2000).nullable(),
+    }),
+  );
+  return json(await ubahCatatanManual(input));
 });
 // Prevent spreadsheet formula execution while preserving original source coordinates.
 function aman(s: string | null) {
@@ -81,27 +94,38 @@ function geojson(
 export const GET = endpoint(async (req) => {
   const q = new URL(req.url).searchParams,
     id = uuid.parse(q.get("sesiId")),
-    format = q.get("format") ?? "xlsx";
+    format = q.get("format") ?? "xlsx",
+    requestedStatus = q.get("status") ?? "",
+    isiKeteranganOtomatis = q.get("isiKeteranganOtomatis") === "true";
   if (!["csv", "xlsx", "kml", "geojson"].includes(format))
     throw new ApiError("Format ekspor harus csv, xlsx, kml, atau geojson.");
+  if (
+    requestedStatus &&
+    requestedStatus !== "SEMUA" &&
+    !STATUS.includes(requestedStatus as (typeof STATUS)[number])
+  )
+    throw new ApiError("Filter status ekspor tidak dikenal.");
+  const filterStatus =
+    requestedStatus && requestedStatus !== "SEMUA" ? requestedStatus : "SEMUA";
   const semuaSesi = await daftarSesi();
   const sesi = semuaSesi.find((s) => s.id === id);
   if (!sesi) throw new ApiError("Sesi tidak ditemukan.", 404);
-  const hasil = await bacaHasil(id, 0, 100000);
+  const hasil = (await bacaHasil(id, 0, 100000)).filter(
+    (h) => filterStatus === "SEMUA" || h.status === filterStatus,
+  );
+  const keterangan = (h: (typeof hasil)[number]) =>
+    aman(
+      h.catatanManual || (isiKeteranganOtomatis ? LABEL_STATUS[h.status] : ""),
+    );
   const rows = hasil.map((h) => ({
     "Deskripsi A": aman(h.deskripsiA),
-    "Sumber Master": aman(h.sumber),
     "Koordinat A X": h.ax,
     "Koordinat A Y": h.ay,
-    Status: h.status,
+    Keterangan: keterangan(h),
     "Jarak (m)": h.jarak === null ? "" : Number(h.jarak.toFixed(3)),
     "Deskripsi B": aman(h.deskripsiB),
     "Koordinat B X": h.bx,
     "Koordinat B Y": h.by,
-    Keputusan: h.keputusan,
-    "Deskripsi Hasil": aman(h.hasilDeskripsi),
-    "Koordinat Hasil X": h.hasilX,
-    "Koordinat Hasil Y": h.hasilY,
   }));
   // Golden dataset: pakai koordinat hasil koreksi, fallback ke data B/masternya.
   const final = hasil.map((h) => ({
@@ -111,9 +135,21 @@ export const GET = endpoint(async (req) => {
     x: h.hasilX ?? h.bx,
     y: h.hasilY ?? h.by,
     status: h.keputusan,
+    statusPencocokan: h.status,
+    keputusan: h.keputusan,
+    sumber: aman(h.sumber),
+    keterangan: keterangan(h),
   }));
+  const amanNamaFile = (s: string) =>
+    s
+      .normalize("NFKD")
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80) || id.slice(0, 8);
+  const ekstensi = format === "geojson" ? "geojson" : format;
   const headers = {
-    "Content-Disposition": `attachment; filename="SIMPATIK-${id.slice(0, 8)}.${format === "geojson" ? "geojson" : format}"`,
+    "Content-Disposition": `attachment; filename="SIMPATIK_${amanNamaFile(sesi.nama)}_${filterStatus}.${ekstensi}"`,
     "Cache-Control": "no-store",
   };
   if (format === "csv")
@@ -140,58 +176,60 @@ export const GET = endpoint(async (req) => {
   );
   const hitung = (s: string) => hasil.filter((h) => h.status === s).length;
   const total = hasil.length;
-  const persen = (n: number) =>
-    total ? `${((n / total) * 100).toFixed(1)}%` : "0.0%";
-  const dikonfirmasi = hasil.filter(
-    (h) => h.keputusan !== "BELUM_DITINJAU",
-  ).length;
+  const persen = (n: number) => (total ? n / total : 0);
+  const waktuWib =
+    new Intl.DateTimeFormat("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Jakarta",
+    }).format(new Date()) + " WIB";
   const ringkasan = [
-    { Keterangan: "Nama Sesi", Nilai: aman(sesi.nama) },
-    { Keterangan: "Tanggal Export", Nilai: new Date().toISOString() },
+    { Kategori: "Nama Sesi", Nilai: aman(sesi.nama) },
+    { Kategori: "Tanggal Export", Nilai: waktuWib },
+    { Kategori: "Filter Export", Nilai: filterStatus },
     {
-      Keterangan: "Master Acuan",
+      Kategori: "Master Acuan",
       Nilai: masters.map((m) => m.nama).join("; ") || "-",
     },
-    { Keterangan: "Toleransi (m)", Nilai: sesi.toleransi },
-    { Keterangan: "Total Titik", Nilai: total },
-    { Keterangan: "", Nilai: "" },
-    { Keterangan: "Rekap Status", Nilai: "Jumlah" },
+    { Kategori: "Toleransi (m)", Nilai: sesi.toleransi },
+    { Kategori: "Total Titik", Nilai: total },
     ...STATUS.map((s) => ({
-      Keterangan: `${LABEL_STATUS[s]} (${s})`,
-      Nilai: `${hitung(s)} \u00B7 ${persen(hitung(s))}`,
+      Kategori: LABEL_STATUS[s],
+      Jumlah: hitung(s),
+      Persentase: persen(hitung(s)),
     })),
-    { Keterangan: "", Nilai: "" },
-    {
-      Keterangan: "Sudah Dikonfirmasi",
-      Nilai: `${dikonfirmasi} \u00B7 ${persen(dikonfirmasi)}`,
-    },
-    {
-      Keterangan: "Belum Dikonfirmasi",
-      Nilai: `${total - dikonfirmasi} \u00B7 ${persen(total - dikonfirmasi)}`,
-    },
   ];
   const finalRows = final.map((f) => ({
     "Deskripsi Final": f.deskripsi,
     "Koordinat X Final": f.x,
     "Koordinat Y Final": f.y,
-    "Status Akhir": f.status,
+    "Status Pencocokan": f.statusPencocokan,
+    Keputusan: f.keputusan,
+    "Sumber Master": f.sumber,
+    Keterangan: f.keterangan,
   }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     workbook,
-    XLSX.utils.json_to_sheet(ringkasan),
-    "Ringkasan Audit",
-  );
-  XLSX.utils.book_append_sheet(
-    workbook,
     XLSX.utils.json_to_sheet(rows),
-    "Audit Trail Transparansi",
+    "Hasil Pencocokan",
   );
   XLSX.utils.book_append_sheet(
     workbook,
     XLSX.utils.json_to_sheet(finalRows),
     "Data Final Siap Pakai",
   );
+  const ringkasanSheet = XLSX.utils.json_to_sheet(ringkasan);
+  const percentColumn = XLSX.utils.decode_col("D");
+  for (let row = 1; row <= ringkasan.length; row++) {
+    const cell =
+      ringkasanSheet[XLSX.utils.encode_cell({ c: percentColumn, r: row })];
+    if (cell && typeof cell.v === "number") cell.z = "0.00%";
+  }
+  XLSX.utils.book_append_sheet(workbook, ringkasanSheet, "Ringkasan Audit");
   return new Response(
     new Uint8Array(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })),
     {

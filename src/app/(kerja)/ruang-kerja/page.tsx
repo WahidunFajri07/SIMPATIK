@@ -213,14 +213,6 @@ export default function Page() {
           <Plus size={15} /> Sesi baru
         </Button>
       </div>
-      <div className="workspace-caption">
-        <span className="eyebrow">RUANG UNTUK MENEMUKAN KEPASTIAN</span>
-        <p>
-          Koordinat bertemu.
-          <br />
-          <span>Data menjadi selaras.</span>
-        </p>
-      </div>
       {selected && height < 70 && (
         <KartuInspeksi
           hasil={selected}

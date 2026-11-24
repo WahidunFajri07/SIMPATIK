@@ -74,6 +74,7 @@ model HasilPencocokan {
   hasilX Float? @map("hasil_x")
   hasilY Float? @map("hasil_y")
   hasilDeskripsi String? @map("hasil_deskripsi")
+  catatanManual String? @map("catatan_manual")
   geom Unsupported("geometry(Point,4326)")?
   @@index([sesiId, status])
   @@map("hasil_pencocokan")

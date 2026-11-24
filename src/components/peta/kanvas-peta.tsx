@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import maplibregl, { type Map as Peta } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ScatterplotLayer, ArcLayer, TextLayer } from "@deck.gl/layers";
@@ -24,19 +25,20 @@ type Point = {
   keputusan?: string;
 };
 const colors: Record<string, [number, number, number, number]> = {
-  MASTER: [12, 132, 118, 220],
+  MASTER: [37, 99, 235, 220],
   AKURAT: [20, 150, 126, 220],
-  PERLU_KOREKSI_JARAK: [223, 146, 61, 235],
-  KANDIDAT_LOKASI_TERDEKAT: [92, 142, 188, 235],
+  PERLU_KOREKSI_JARAK: [245, 158, 11, 235],
+  KANDIDAT_LOKASI_TERDEKAT: [37, 99, 235, 235],
   TIDAK_DITEMUKAN: [157, 163, 171, 230],
 };
 /** Titik yang sudah diputuskan berubah hijau agar terlihat selesai di peta. */
-const TERKONFIRMASI: [number, number, number, number] = [22, 163, 74, 255];
+const TERKONFIRMASI: [number, number, number, number] = [16, 185, 129, 255];
 const sudahDitinjau = (p: Point) =>
   p.jenis === "tinjauan" && !!p.keputusan && p.keputusan !== "BELUM_DITINJAU";
-const jalanTiles =
-  process.env.NEXT_PUBLIC_MAP_TILE_URL ||
-  "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ESRI_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const jalanTiles = process.env.NEXT_PUBLIC_MAP_TILE_URL || OSM_TILES;
 export function KanvasPeta({
   sesiId,
   selected,
@@ -52,6 +54,7 @@ export function KanvasPeta({
   drawerHeight: number;
   statusFilter?: string;
 }) {
+  const reduceMotion = useReducedMotion();
   const container = useRef<HTMLDivElement>(null),
     map = useRef<Peta | null>(null),
     overlay = useRef<MapboxOverlay | null>(null),
@@ -62,6 +65,8 @@ export function KanvasPeta({
     [notice, setNotice] = useState(""),
     [pitch, setPitch] = useState(true),
     [satellite, setSatellite] = useState(false),
+    [legendOpen, setLegendOpen] = useState(false),
+    [cursor, setCursor] = useState<{ x: number; y: number } | null>(null),
     [position, setPosition] = useState({ x: 107.607, y: -6.91 });
   select.current = onSelect;
   useEffect(() => {
@@ -118,14 +123,25 @@ export function KanvasPeta({
     m.on("idle", () => {
       if (m.areTilesLoaded()) setTilesReady(true);
     });
-    m.on("error", () =>
+    m.on("error", (event) => {
       setNotice(
-        "Peta dasar belum tersedia. Periksa koneksi internet; titik tetap dapat ditinjau.",
-      ),
-    );
+        "Peta dasar belum tersedia. Beralih ke citra cadangan; titik tetap dapat ditinjau.",
+      );
+      if (!satellite && event.error?.message && m.getSource("basemap")) {
+        const source = m.getSource("basemap") as maplibregl.RasterTileSource;
+        source.setTiles([ESRI_TILES]);
+        m.setPaintProperty("basemap", "raster-saturation", 0);
+        m.setPaintProperty("basemap", "raster-opacity", 1);
+        setSatellite(true);
+      }
+    });
     m.on("moveend", () => {
       const p = m.getCenter();
       setPosition({ x: p.lng, y: p.lat });
+    });
+    m.on("mousemove", (e) => setCursor({ x: e.lngLat.lng, y: e.lngLat.lat }));
+    m.on("mouseleave", () => {
+      if (m) setCursor({ x: m.getCenter().lng, y: m.getCenter().lat });
     });
     return () => {
       setReady(false);
@@ -341,13 +357,7 @@ export function KanvasPeta({
     const m = map.current;
     if (!m) return;
     const source = m.getSource("basemap") as maplibregl.RasterTileSource;
-    source.setTiles(
-      satellite
-        ? [jalanTiles]
-        : [
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          ],
-    );
+    source.setTiles(satellite ? [jalanTiles] : [ESRI_TILES]);
     m.setPaintProperty("basemap", "raster-saturation", satellite ? -0.65 : 0);
     m.setPaintProperty("basemap", "raster-opacity", satellite ? 0.88 : 1);
     setSatellite(!satellite);
@@ -362,34 +372,58 @@ export function KanvasPeta({
         data-ready={ready}
         data-tiles-ready={tilesReady}
         data-points={points.length}
+        data-map-mode={satellite ? "satellite" : "standard"}
       />
       <div className="map-gradient" />
       <div
-        className="map-readouts"
+        className={`map-readouts ${satellite ? "map-satellite" : ""}`}
         style={{ bottom: `calc(${drawerHeight}dvh + 42px)` }}
       >
-        <div className="map-location">
-          <span className="tiny-dot" /> WGS84 · INDONESIA{" "}
+        <div
+          className={`map-location map-cursor-hud ${satellite ? "map-satellite" : ""}`}
+        >
+          <span className="tiny-dot" />
+          <span>WGS84</span>
           <span className="mono">
-            {position.y.toFixed(4)}° / {position.x.toFixed(4)}°
+            {cursor ? cursor.y.toFixed(4) : position.y.toFixed(4)}° /
+            {cursor ? cursor.x.toFixed(4) : position.x.toFixed(4)}°
           </span>
         </div>
         <div className="map-legend">
-          <span>
-            <i style={{ background: "#0e9381" }} /> Master A
-          </span>
-          <span>
-            <i style={{ background: "#dba052" }} /> Tinjauan B
-          </span>
-          <span>
-            <i style={{ background: "#16a34a" }} /> Sudah dikonfirmasi
-          </span>
-          <span className="legend-count">
-            {points.length} titik dalam tampilan
-          </span>
+          <button
+            className="legend-pill"
+            onClick={() => setLegendOpen(!legendOpen)}
+            aria-expanded={legendOpen}
+            aria-label={`Keterangan peta · ${points.length} titik`}
+          >
+            <i style={{ background: "#2563EB" }} /> Keterangan peta ·{" "}
+            {points.length} titik
+          </button>
+          {legendOpen && (
+            <motion.div
+              className="map-legend-details"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 300, damping: 28 }
+              }
+            >
+              <div>
+                <i style={{ background: "#2563EB" }} /> Master A
+              </div>
+              <div>
+                <i style={{ background: "#F59E0B" }} /> Tinjauan B
+              </div>
+              <div>
+                <i style={{ background: "#10B981" }} /> Sudah dikonfirmasi
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
-      <div className="map-controls">
+      <div className={`map-controls ${satellite ? "map-satellite" : ""}`}>
         <div>
           <button
             aria-label="Perbesar peta"

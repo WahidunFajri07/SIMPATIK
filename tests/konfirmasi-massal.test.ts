@@ -24,6 +24,7 @@ function hasil(overrides: Partial<Hasil> = {}): Hasil {
     hasilX: null,
     hasilY: null,
     hasilDeskripsi: null,
+    catatanManual: null,
     ...overrides,
   };
 }

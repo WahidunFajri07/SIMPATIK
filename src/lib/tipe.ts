@@ -49,6 +49,7 @@ export type Hasil = {
   hasilX: number | null;
   hasilY: number | null;
   hasilDeskripsi: string | null;
+  catatanManual: string | null;
 };
 export type Sesi = {
   id: string;

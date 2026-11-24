@@ -95,6 +95,7 @@ export function buatPencocok(
       hasilX: null,
       hasilY: null,
       hasilDeskripsi: null,
+      catatanManual: null,
     };
   };
 }

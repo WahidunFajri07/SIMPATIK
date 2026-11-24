@@ -343,6 +343,16 @@ type Konfirmasi = {
   keputusan: Exclude<Keputusan, "BELUM_DITINJAU">;
   x?: number;
   y?: number;
+  catatanManual?: string | null;
+};
+export type CatatanManualInput = {
+  id: string;
+  sesiId: string;
+  catatanManual: string | null;
+};
+const normalisasiCatatan = (value: string | null | undefined) => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed ? trimmed : null;
 };
 export type KonfirmasiBanyak = {
   sesiId: string;
@@ -420,6 +430,9 @@ export function terapkanKeputusan(h: Hasil, input: Konfirmasi) {
       input.keputusan === "TERIMA_DESKRIPSI_MASTER"
         ? h.deskripsiA
         : h.deskripsiB || h.deskripsiA,
+    ...(input.catatanManual === undefined
+      ? {}
+      : { catatanManual: normalisasiCatatan(input.catatanManual) }),
   };
 }
 export async function konfirmasiBanyak(input: KonfirmasiBanyak) {
@@ -472,6 +485,32 @@ export async function konfirmasiBanyak(input: KonfirmasiBanyak) {
     },
     { timeout: 120000 },
   );
+}
+export async function ubahCatatanManual(
+  input: CatatanManualInput,
+): Promise<Hasil> {
+  const catatan = normalisasiCatatan(input.catatanManual);
+  if (!pakaiPostgis)
+    return lokal((s) => {
+      const h = s.hasil.find(
+        (h) => h.id === input.id && h.sesiId === input.sesiId,
+      );
+      if (!h) throw new ApiError("Hasil tidak ditemukan.", 404);
+      h.catatanManual = catatan;
+      return h;
+    }, true);
+  return db().$transaction(async (tx) => {
+    const found = await tx.$queryRaw<
+      Array<{ id: bigint }>
+    >`SELECT id FROM hasil_pencocokan WHERE id = ${BigInt(input.id)} AND sesi_id = ${input.sesiId}::uuid FOR UPDATE`;
+    if (!found.length) throw new ApiError("Hasil tidak ditemukan.", 404);
+    return serial<Hasil>(
+      await tx.hasilPencocokan.update({
+        where: { id: BigInt(input.id) },
+        data: { catatanManual: catatan },
+      }),
+    );
+  });
 }
 export async function konfirmasi(input: Konfirmasi): Promise<Hasil> {
   if (!pakaiPostgis)

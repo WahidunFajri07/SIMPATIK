@@ -28,8 +28,45 @@ import {
   type Hasil,
   type Sesi,
 } from "@/lib/tipe";
-import { jumlah, meter } from "@/lib/klien";
+import { api, jumlah, meter } from "@/lib/klien";
 import { Button } from "../ui/button";
+function InlineNote({ hasil }: { hasil: Hasil }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(hasil.catatanManual ?? "");
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    setSaving(true);
+    const updated = await api<Hasil>("/api/konfirmasi", {
+      method: "PATCH",
+      body: JSON.stringify({
+        id: hasil.id,
+        sesiId: hasil.sesiId,
+        catatanManual: value.trim() || null,
+      }),
+    });
+    setValue(updated.catatanManual ?? "");
+    setEditing(false);
+    setSaving(false);
+  }
+  if (!editing)
+    return (
+      <button className="inline-note" onClick={() => setEditing(true)}>
+        {hasil.catatanManual || "Tambah keterangan"}
+      </button>
+    );
+  return (
+    <input
+      aria-label={`Keterangan ${hasil.deskripsiB || hasil.id}`}
+      value={value}
+      disabled={saving}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => void save()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") void save();
+      }}
+    />
+  );
+}
 export function StatusBadge({ status }: { status: Hasil["status"] }) {
   return (
     <span className={`status-badge status-${status.toLowerCase()}`}>
@@ -74,6 +111,11 @@ const columns = [
         {meter(i.getValue())}
       </span>
     ),
+  }),
+  col.accessor("catatanManual", {
+    header: "Keterangan",
+    size: 190,
+    cell: (i) => <InlineNote hasil={i.row.original} />,
   }),
   col.accessor("deskripsiB", {
     header: "Deskripsi B",
@@ -127,6 +169,7 @@ export function LaciTabel({
     [search, setSearch] = useState(""),
     [sorting, setSorting] = useState<SortingState>([]),
     [exportOpen, setExportOpen] = useState(false),
+    [autoFill, setAutoFill] = useState(false),
     [pending, setPending] = useState(false);
   // Sinkronkan filter tabel ke layer peta agar keduanya menampilkan hal sama.
   useEffect(() => {
@@ -311,7 +354,6 @@ export function LaciTabel({
             : LABEL_STATUS[filter as Hasil["status"]]}
         </span>
         <select
-          className="status-mobile"
           aria-label="Filter status"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -341,30 +383,57 @@ export function LaciTabel({
           </Button>
           {exportOpen && sesi && (
             <div className="export-menu">
-              <a
-                href={`/api/konfirmasi?sesiId=${sesi.id}&format=xlsx`}
-                onClick={() => setExportOpen(false)}
-              >
-                Excel (.xlsx) · 3 sheet
-              </a>
-              <a
-                href={`/api/konfirmasi?sesiId=${sesi.id}&format=csv`}
-                onClick={() => setExportOpen(false)}
-              >
-                CSV (.csv)
-              </a>
-              <a
-                href={`/api/konfirmasi?sesiId=${sesi.id}&format=kml`}
-                onClick={() => setExportOpen(false)}
-              >
-                Google Earth (.kml)
-              </a>
-              <a
-                href={`/api/konfirmasi?sesiId=${sesi.id}&format=geojson`}
-                onClick={() => setExportOpen(false)}
-              >
-                QGIS / GeoJSON (.geojson)
-              </a>
+              <label className="export-auto-fill">
+                <input
+                  type="checkbox"
+                  checked={autoFill}
+                  onChange={(e) => setAutoFill(e.target.checked)}
+                />
+                Isi Keterangan kosong dengan Status Sistem
+              </label>
+              {(["xlsx", "csv", "kml", "geojson"] as const).map((format) => {
+                const params = new URLSearchParams({
+                  sesiId: sesi.id,
+                  format,
+                  ...(filter !== "SEMUA" ? { status: filter } : {}),
+                  ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}),
+                });
+                const semua = new URLSearchParams({
+                  sesiId: sesi.id,
+                  format,
+                  ...(autoFill ? { isiKeteranganOtomatis: "true" } : {}),
+                });
+                const label =
+                  format === "xlsx"
+                    ? "Excel (.xlsx) · 3 sheet"
+                    : format === "kml"
+                      ? "Google Earth (.kml)"
+                      : format === "geojson"
+                        ? "QGIS / GeoJSON (.geojson)"
+                        : "CSV (.csv)";
+                return (
+                  <div key={format} className="export-option-group">
+                    <a
+                      href={`/api/konfirmasi?${params}`}
+                      onClick={() => setExportOpen(false)}
+                    >
+                      Export Sesuai Filter (
+                      {filter === "SEMUA"
+                        ? "Semua Status"
+                        : LABEL_STATUS[filter as Hasil["status"]]}
+                      ) · {label}
+                    </a>
+                    {filter !== "SEMUA" && (
+                      <a
+                        href={`/api/konfirmasi?${semua}`}
+                        onClick={() => setExportOpen(false)}
+                      >
+                        Export Semua Status · {label}
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

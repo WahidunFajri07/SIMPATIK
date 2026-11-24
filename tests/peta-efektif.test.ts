@@ -24,6 +24,7 @@ const dasar: Hasil = {
   hasilX: null,
   hasilY: null,
   hasilDeskripsi: null,
+  catatanManual: null,
 };
 
 test("posisi peta memakai koordinat B sebelum konfirmasi", () => {
